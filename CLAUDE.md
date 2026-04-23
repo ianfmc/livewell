@@ -36,6 +36,10 @@ Each app has its own `CLAUDE.md` with app-specific conventions:
 
 Worktree directory: `.worktrees/` (monorepo root, git-ignored). Always use this location when creating git worktrees for feature branches.
 
+## Workflow
+
+When using `superpowers:subagent-driven-development`, always invoke `superpowers:using-git-worktrees` first to create an isolated workspace before any implementation begins.
+
 ## Docs
 
 All cross-cutting design documents, architecture decisions, API contracts, and roadmap files live in `docs/`. Superpowers specs and plans are in `docs/superpowers/`.

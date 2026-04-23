@@ -48,6 +48,7 @@ const BacktestResults = () => {
   const { data, loading, error } = useBacktest();
   const [marketFilter, setMarketFilter] = useState('All');
   const [regimeFilter, setRegimeFilter] = useState('All');
+  const [expiryWindowFilter, setExpiryWindowFilter] = useState('All');
 
   const markets = useMemo(() => {
     if (!data) return [];
@@ -59,14 +60,20 @@ const BacktestResults = () => {
     return ['All', ...Array.from(new Set(data.rows.map((r) => r.regime)))];
   }, [data]);
 
+  const expiryWindows = useMemo(() => {
+    if (!data) return [];
+    return ['All', ...Array.from(new Set(data.rows.map((r) => r.expiryWindow)))];
+  }, [data]);
+
   const filteredRows = useMemo(() => {
     if (!data) return [];
     return data.rows.filter(
       (r) =>
         (marketFilter === 'All' || r.market === marketFilter) &&
-        (regimeFilter === 'All' || r.regime === regimeFilter)
+        (regimeFilter === 'All' || r.regime === regimeFilter) &&
+        (expiryWindowFilter === 'All' || r.expiryWindow === expiryWindowFilter)
     );
-  }, [data, marketFilter, regimeFilter]);
+  }, [data, marketFilter, regimeFilter, expiryWindowFilter]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -129,6 +136,17 @@ const BacktestResults = () => {
                 onChange={(e) => setRegimeFilter(e.target.value)}
               >
                 {regimes.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel id="expiry-window-filter-label">Expiry Window</InputLabel>
+              <Select
+                labelId="expiry-window-filter-label"
+                value={expiryWindowFilter}
+                label="Expiry Window"
+                onChange={(e) => setExpiryWindowFilter(e.target.value)}
+              >
+                {expiryWindows.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
               </Select>
             </FormControl>
           </Box>

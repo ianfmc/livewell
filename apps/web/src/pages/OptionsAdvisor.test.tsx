@@ -6,6 +6,11 @@ function renderPage() {
   return render(<MemoryRouter><OptionsAdvisor /></MemoryRouter>);
 }
 
+function selectMarket(market: string) {
+  fireEvent.mouseDown(screen.getByLabelText('Market'));
+  fireEvent.click(screen.getByRole('option', { name: market }));
+}
+
 describe('OptionsAdvisor', () => {
   it('renders Step 1 heading on load', () => {
     renderPage();
@@ -14,14 +19,14 @@ describe('OptionsAdvisor', () => {
 
   it('advances to Step 2 after selecting a market', () => {
     renderPage();
-    fireEvent.click(screen.getByLabelText('EUR/USD'));
+    selectMarket('EUR/USD');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     expect(screen.getByText('Step 2: Select Expiry Window')).toBeInTheDocument();
   });
 
   it('advances to Step 3 after selecting expiry', () => {
     renderPage();
-    fireEvent.click(screen.getByLabelText('EUR/USD'));
+    selectMarket('EUR/USD');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByLabelText('2-hour'));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -30,7 +35,7 @@ describe('OptionsAdvisor', () => {
 
   it('shows results panel after completing all steps', () => {
     renderPage();
-    fireEvent.click(screen.getByLabelText('EUR/USD'));
+    selectMarket('EUR/USD');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByLabelText('2-hour'));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -43,7 +48,7 @@ describe('OptionsAdvisor', () => {
 
   it('Start over resets to Step 1', () => {
     renderPage();
-    fireEvent.click(screen.getByLabelText('EUR/USD'));
+    selectMarket('EUR/USD');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByLabelText('2-hour'));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));

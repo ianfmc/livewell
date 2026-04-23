@@ -8,9 +8,12 @@ import Container from '@mui/material/Container';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
@@ -85,15 +88,18 @@ const OptionsAdvisor = () => {
       {state.step === 0 && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>Step 1: Select a Market</Typography>
-          <FormControl component="fieldset">
-            <RadioGroup
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel id="market-select-label">Market</InputLabel>
+            <Select
+              labelId="market-select-label"
               value={state.market ?? ''}
+              label="Market"
               onChange={(e) => update({ market: e.target.value })}
             >
               {MARKETS.map((m) => (
-                <FormControlLabel key={m} value={m} control={<Radio />} label={m} />
+                <MenuItem key={m} value={m}>{m}</MenuItem>
               ))}
-            </RadioGroup>
+            </Select>
           </FormControl>
           <Box sx={{ mt: 3 }}>
             <Button

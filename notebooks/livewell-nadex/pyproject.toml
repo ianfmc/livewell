@@ -1,0 +1,15 @@
+[project]
+name = "livewell-nadex"
+version = "0.1.0"
+description = "LIVEWELL Nadex workflow: results extraction, recommendation engine, and backtesting."
+requires-python = ">=3.10"
+
+# Leave dependencies empty for now and keep requirements.txt for runtime installs.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

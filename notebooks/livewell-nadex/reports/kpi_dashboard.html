@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading KPI Dashboard - Nadex Strategy</title>
+    
+    <!-- Material Symbols (Outlined/Monochrome) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #1a237e;
+            font-weight: 500;
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .metadata {
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .metadata-item .material-symbols-outlined {
+            font-size: 18px;
+            color: #1a237e;
+        }
+        
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .kpi-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .kpi-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .kpi-icon.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .kpi-icon.primary {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .kpi-icon.warning {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        .kpi-title {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+        
+        .kpi-value {
+            font-size: 36px;
+            font-weight: 300;
+            color: #1a237e;
+            margin-bottom: 8px;
+        }
+        
+        .kpi-detail {
+            font-size: 14px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .kpi-detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .positive {
+            color: #2e7d32;
+        }
+        
+        .negative {
+            color: #c62828;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            color: #1a237e;
+            margin-bottom: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chart-title .material-symbols-outlined {
+            font-size: 24px;
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24;
+        }
+        
+        canvas {
+            max-height: 400px;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            margin-top: 24px;
+            opacity: 0.9;
+        }
+        
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>Trading Performance Dashboard</h1>
+            <p style="color: #666; margin-top: 4px;">Nadex RSI Strategy - Performance KPIs</p>
+            <div class="metadata">
+                <div class="metadata-item">
+                    <span class="material-symbols-outlined">date_range</span>
+                    <span><strong>Period:</strong> Mar 20, 2025 - Dec 09, 2025</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="material-symbols-outlined">show_chart</span>
+                    <span><strong>Total Trades:</strong> 13,543</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="material-symbols-outlined">trending_up</span>
+                    <span><strong>Wins:</strong> 7,681</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="material-symbols-outlined">trending_down</span>
+                    <span><strong>Losses:</strong> 5,862</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="material-symbols-outlined">schedule</span>
+                    <span><strong>Generated:</strong> 12/15/2025, 10:36:02 AM</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <!-- Win Rate Card -->
+            <div class="kpi-card">
+                <div class="kpi-card-header">
+                    <div class="kpi-icon success">
+                        <span class="material-symbols-outlined">emoji_events</span>
+                    </div>
+                    <div class="kpi-title">Win Rate</div>
+                </div>
+                <div class="kpi-value positive">56.72%</div>
+                <div class="kpi-detail">7,681 wins out of 13,543 trades</div>
+            </div>
+            
+            <!-- P&L Card -->
+            <div class="kpi-card">
+                <div class="kpi-card-header">
+                    <div class="kpi-icon primary">
+                        <span class="material-symbols-outlined">account_balance_wallet</span>
+                    </div>
+                    <div class="kpi-title">Profit & Loss</div>
+                </div>
+                <div class="kpi-value positive">$5,600.70</div>
+                <div class="kpi-detail">Net P&L</div>
+                <div class="kpi-detail-row">
+                    <span>Gross P&L:</span>
+                    <span class="positive"><strong>$6,955.00</strong></span>
+                </div>
+                <div class="kpi-detail-row">
+                    <span>Commissions:</span>
+                    <span class="negative"><strong>-$1,354.30</strong></span>
+                </div>
+            </div>
+            
+            <!-- Max Drawdown Card -->
+            <div class="kpi-card">
+                <div class="kpi-card-header">
+                    <div class="kpi-icon warning">
+                        <span class="material-symbols-outlined">trending_down</span>
+                    </div>
+                    <div class="kpi-title">Maximum Drawdown</div>
+                </div>
+                <div class="kpi-value negative">$-410.00</div>
+                <div class="kpi-detail">Peak-to-trough decline</div>
+                <div class="kpi-detail-row">
+                    <span>Drawdown %:</span>
+                    <span class="negative"><strong>-5.90%</strong></span>
+                </div>
+                <div class="kpi-detail-row">
+                    <span>Recovery Time:</span>
+                    <span><strong>14 days</strong></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cumulative P&L Chart -->
+        <div class="chart-container">
+            <div class="chart-title">
+                <span class="material-symbols-outlined">timeline</span>
+                Cumulative P&L Over Time
+            </div>
+            <canvas id="plChart"></canvas>
+        </div>
+        
+        <!-- Drawdown Chart -->
+        <div class="chart-container">
+            <div class="chart-title">
+                <span class="material-symbols-outlined">bar_chart</span>
+                Drawdown Analysis
+            </div>
+            <canvas id="drawdownChart"></canvas>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Generated by Livewell Nadex Trading System | Commission: $0.10/contract</p>
+        </div>
+    </div>
+    
+    <script>
+        // Real data from backtesting
+        const dates = ["2025-03-20", "2025-03-21", "2025-03-24", "2025-03-27", "2025-03-28", "2025-03-31", "2025-04-01", "2025-04-02", "2025-04-04", "2025-04-07", "2025-04-08", "2025-04-09", "2025-04-10", "2025-04-11", "2025-04-14", "2025-04-15", "2025-04-16", "2025-04-17", "2025-04-21", "2025-04-22", "2025-04-23", "2025-04-24", "2025-04-28", "2025-04-29", "2025-05-01", "2025-05-02", "2025-05-05", "2025-05-07", "2025-05-08", "2025-05-09", "2025-05-12", "2025-05-13", "2025-05-14", "2025-05-15", "2025-05-16", "2025-05-19", "2025-05-20", "2025-05-27", "2025-05-28", "2025-06-02", "2025-06-03", "2025-06-11", "2025-06-12", "2025-06-13", "2025-06-16", "2025-06-17", "2025-06-18", "2025-06-19", "2025-06-20", "2025-06-23", "2025-06-24", "2025-06-25", "2025-06-26", "2025-06-27", "2025-06-30", "2025-07-01", "2025-07-02", "2025-07-03", "2025-07-07", "2025-07-08", "2025-07-09", "2025-07-10", "2025-07-11", "2025-07-14", "2025-07-15", "2025-07-16", "2025-07-17", "2025-07-18", "2025-07-21", "2025-07-22", "2025-07-23", "2025-07-24", "2025-07-28", "2025-07-29", "2025-07-30", "2025-08-05", "2025-08-11", "2025-08-12", "2025-08-13", "2025-08-14", "2025-08-18", "2025-08-19", "2025-08-20", "2025-08-28", "2025-08-29", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-20", "2025-10-23", "2025-10-30", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-24", "2025-11-28", "2025-12-09"];
+        const cumulativePL = [-72.5, -162.5, -160.0, -132.5, -137.5, -70.0, -75.0, -47.5, -87.5, 62.5, -130.0, -210.0, -150.0, -160.0, -152.5, -240.0, -232.5, -242.5, -157.5, -245.0, -300.0, -307.5, -347.5, -302.5, -175.0, 0.0, -2.5, 12.5, 17.5, -47.5, 287.5, 545.0, 450.0, 472.5, 517.5, 507.5, 470.0, 485.0, 477.5, 552.5, 575.0, 932.5, 1092.5, 1020.0, 1365.0, 1585.0, 1582.5, 1652.5, 1910.0, 2305.0, 2037.5, 2220.0, 2515.0, 2625.0, 2617.5, 2657.5, 2857.5, 3120.0, 3375.0, 4050.0, 4140.0, 3945.0, 4240.0, 4507.5, 4747.5, 4725.0, 4517.5, 4885.0, 4940.0, 4837.5, 4860.0, 4875.0, 4880.0, 4870.0, 4892.5, 4910.0, 4902.5, 4895.0, 4895.0, 4902.5, 4907.5, 4892.5, 4862.5, 4865.0, 4860.0, 4895.0, 4925.0, 4912.5, 4965.0, 5010.0, 5012.5, 5100.0, 5215.0, 5325.0, 5407.5, 5355.0, 5417.5, 5722.5, 5735.0, 5725.0, 5707.5, 5712.5, 5540.0, 5547.5, 5580.0, 5592.5, 5592.5, 5737.5, 5702.5, 5730.0, 5767.5, 5737.5, 5687.5, 5692.5, 5740.0, 5782.5, 5787.5, 5830.0, 6250.0, 6245.0, 6275.0, 6292.5, 6262.5, 6272.5, 6297.5, 6300.0, 6317.5, 6340.0, 6325.0, 6385.0, 6935.0, 6947.5, 6945.0, 6955.0];
+        const drawdown = [0.0, -90.0, -87.5, -60.0, -65.0, 0.0, -5.0, 0.0, -40.0, 0.0, -192.5, -272.5, -212.5, -222.5, -215.0, -302.5, -295.0, -305.0, -220.0, -307.5, -362.5, -370.0, -410.0, -365.0, -237.5, -62.5, -65.0, -50.0, -45.0, -110.0, 0.0, 0.0, -95.0, -72.5, -27.5, -37.5, -75.0, -60.0, -67.5, 0.0, 0.0, 0.0, 0.0, -72.5, 0.0, 0.0, -2.5, 0.0, 0.0, 0.0, -267.5, -85.0, 0.0, 0.0, -7.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -195.0, 0.0, 0.0, 0.0, -22.5, -230.0, 0.0, 0.0, -102.5, -80.0, -65.0, -60.0, -70.0, -47.5, -30.0, -37.5, -45.0, -45.0, -37.5, -32.5, -47.5, -77.5, -75.0, -80.0, -45.0, -15.0, -27.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -52.5, 0.0, 0.0, 0.0, -10.0, -27.5, -22.5, -195.0, -187.5, -155.0, -142.5, -142.5, 0.0, -35.0, -7.5, 0.0, -30.0, -80.0, -75.0, -27.5, 0.0, 0.0, 0.0, 0.0, -5.0, 0.0, 0.0, -30.0, -20.0, 0.0, 0.0, 0.0, 0.0, -15.0, 0.0, 0.0, 0.0, -2.5, 0.0];
+        
+        // Cumulative P&L Chart
+        const plCtx = document.getElementById('plChart').getContext('2d');
+        new Chart(plCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Cumulative P&L ($)',
+                    data: cumulativePL,
+                    borderColor: '#1565c0',
+                    backgroundColor: 'rgba(21, 101, 192, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return 'P&L: $' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        ticks: {
+                            maxTicksLimit: 12
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Cumulative P&L ($)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(0);
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+        
+        // Drawdown Chart (Bar/Column)
+        const ddCtx = document.getElementById('drawdownChart').getContext('2d');
+        new Chart(ddCtx, {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Drawdown ($)',
+                    data: drawdown,
+                    backgroundColor: 'rgba(198, 40, 40, 0.7)',
+                    borderColor: '#c62828',
+                    borderWidth: 1,
+                    borderRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return 'Drawdown: $' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        ticks: {
+                            maxTicksLimit: 12
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Drawdown from Peak ($)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(0);
+                            }
+                        },
+                        max: 0
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+# Ticker Mappings Configuration
+# SINGLE SOURCE OF TRUTH for all Nadex ticker information
+# Maps Nadex display names to ticker symbols with metadata
+
+tickers:
+  # Futures
+  CL=F:
+    display_name: CRUDE
+    description: Crude Oil
+    asset_class: Futures
+    active: true         # Actively traded in recommendations
+    
+  ES=F:
+    display_name: US500
+    description: E-mini S&P 500
+    asset_class: Futures
+    active: true
+    
+  GC=F:
+    display_name: GOLD
+    description: Gold
+    asset_class: Futures
+    active: true
+    
+  NG=F:
+    display_name: NGAS
+    description: Natural Gas
+    asset_class: Futures
+    active: true
+    
+  NQ=F:
+    display_name: USTECH
+    description: E-mini NASDAQ 100
+    asset_class: Futures
+    active: true
+    
+  RTY=F:
+    display_name: US2000
+    description: E-mini Russell 2000
+    asset_class: Futures
+    active: true
+    
+  YM=F:
+    display_name: WALLST30
+    description: E-mini Dow Jones
+    asset_class: Futures
+    active: true
+    
+  NKD=F:
+    display_name: J225
+    description: Nikkei 225
+    asset_class: Futures
+    active: false        # Available but not actively traded
+  
+  # Forex - Major Pairs
+  AUDUSD=X:
+    display_name: AUD-USD
+    description: Australian Dollar / US Dollar
+    asset_class: Forex
+    active: true
+    
+  AUDJPY=X:
+    display_name: AUD-JPY
+    description: Australian Dollar / Japanese Yen
+    asset_class: Forex
+    active: false        # Available but not actively traded
+    
+  EURJPY=X:
+    display_name: EUR-JPY
+    description: Euro / Japanese Yen
+    asset_class: Forex
+    active: true
+    
+  EURGBP=X:
+    display_name: EUR-GBP
+    description: Euro / British Pound
+    asset_class: Forex
+    active: false        # Available but not actively traded
+    
+  EURUSD=X:
+    display_name: EUR-USD
+    description: Euro / US Dollar
+    asset_class: Forex
+    active: true
+    
+  GBPJPY=X:
+    display_name: GBP-JPY
+    description: British Pound / Japanese Yen
+    asset_class: Forex
+    active: true
+    
+  GBPUSD=X:
+    display_name: GBP-USD
+    description: British Pound / US Dollar
+    asset_class: Forex
+    active: true
+    
+  USDCAD=X:
+    display_name: USD-CAD
+    description: US Dollar / Canadian Dollar
+    asset_class: Forex
+    active: true
+    
+  USDCHF=X:
+    display_name: USD-CHF
+    description: US Dollar / Swiss Franc
+    asset_class: Forex
+    active: true
+    
+  USDJPY=X:
+    display_name: USD-JPY
+    description: US Dollar / Japanese Yen
+    asset_class: Forex
+    active: true
+    
+  USDMXN=X:
+    display_name: USD-MXN
+    description: US Dollar / Mexican Peso
+    asset_class: Forex
+    active: false        # Available but not actively traded
+
+# Test tickers (subset for diagnostic tests)
+test_tickers:
+  - ES=F
+  - NQ=F
+  - GC=F
+  - CL=F
+  - EURUSD=X
+
+# Notes:
+# - This is the SINGLE SOURCE OF TRUTH for all ticker information
+# - To add a ticker: Add entry here with all metadata
+# - To enable/disable trading: Change the 'active' flag
+# - Historical processing uses ALL tickers (19 total)
+# - Recommendation engine uses only tickers where active: true (15 total)
+# - No need to maintain separate tickers.yaml file

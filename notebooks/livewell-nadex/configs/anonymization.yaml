@@ -1,0 +1,6 @@
+enabled: true
+salt_kms_key: alias/livewell-salt
+fields:
+  account_id: hash
+  user_id: hash
+  ip: redact

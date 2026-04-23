@@ -1,0 +1,178 @@
+# Experiment Configuration for Capital-Constrained Backtesting
+# Design of Experiments (DOE) with defaults and per-experiment overrides
+
+# Global defaults - applied to all experiments unless overridden
+defaults:
+  # Strategy Parameters
+  strategy:
+    rsi_period: 14
+    rsi_mode: reversal
+    oversold: 25
+    overbought: 75
+    strike_filter_pct: 0.10
+    
+  # Capital Constraints  
+  capital:
+    daily_budget: 50.0           # Max $ to allocate per day
+    daily_risk_budget: 25.0      # Max $ risk exposure per day
+    max_trades_per_day: 5        # Max number of trades per day
+    max_loss_per_trade: 7.50     # Max loss on any single trade (ITM entry cost)
+    
+  # Selection Parameters
+  selection:
+    score_by: signal_strength    # Primary scoring metric
+    top_k: 5                     # Select top K opportunities per day
+    tiebreaker: ticker           # Secondary sort for determinism
+    
+  # Backtest Parameters
+  backtest:
+    commission_per_contract: 0.10
+    seed: 42                     # Random seed for reproducibility
+    
+  # Output Settings
+  output:
+    s3_prefix: "experiments"
+    save_trades: true
+    save_daily_metrics: true
+    save_summary: true
+
+# Experiment Definitions
+# Each experiment inherits defaults and can override any setting
+experiments:
+  # ==========================================================================
+  # E1.x - Baseline Experiments
+  # ==========================================================================
+  
+  E1.0:
+    name: "Baseline - No Capital Constraints"
+    description: "Full backtest without capital limits. Establishes unconstrained P&L baseline."
+    enabled: true
+    overrides:
+      capital:
+        daily_budget: 99999.0       # Effectively unlimited
+        daily_risk_budget: 99999.0
+        max_trades_per_day: 999
+      selection:
+        top_k: 999                  # Take all signals
+    tags: ["baseline", "unconstrained"]
+    
+  E1.1:
+    name: "Baseline - Standard Capital"
+    description: "Baseline with standard capital constraints ($50/day, 5 trades max)."
+    enabled: true
+    # Uses all defaults
+    tags: ["baseline", "constrained"]
+
+  # ==========================================================================
+  # E2.x - Selection Strategy Experiments
+  # ==========================================================================
+  
+  E2.1:
+    name: "Selection by Signal Strength"
+    description: "Select trades by RSI-based signal strength score."
+    enabled: true
+    overrides:
+      selection:
+        score_by: signal_strength
+        top_k: 5
+    tags: ["selection", "signal_strength"]
+    
+  E2.2:
+    name: "Selection by EV Proxy"
+    description: "Select trades by expected value proxy (placeholder - requires EV model)."
+    enabled: false   # Stub - EV model not yet implemented
+    overrides:
+      selection:
+        score_by: ev_proxy
+        top_k: 5
+    tags: ["selection", "ev_proxy", "stub"]
+    notes: "TODO: Implement EV proxy model. Currently uses signal_strength as fallback."
+
+  # ==========================================================================
+  # E4.x - Rebalancing Frequency Experiments  
+  # ==========================================================================
+  
+  E4.0:
+    name: "Daily Rebalancing"
+    description: "Rebalance capital allocation daily (default behavior)."
+    enabled: true
+    overrides:
+      capital:
+        rebalance_frequency: daily
+    tags: ["rebalancing", "daily"]
+    
+  E4.1:
+    name: "Weekly Rebalancing"
+    description: "Rebalance capital allocation weekly (every Monday)."
+    enabled: true
+    overrides:
+      capital:
+        rebalance_frequency: weekly
+        rebalance_day: 0           # 0 = Monday
+    tags: ["rebalancing", "weekly"]
+
+  # ==========================================================================
+  # E5.x - Capital Sweep Experiments
+  # ==========================================================================
+  
+  E5.1:
+    name: "Capital Sweep - $25/day"
+    description: "Conservative daily budget of $25."
+    enabled: true
+    overrides:
+      capital:
+        daily_budget: 25.0
+        daily_risk_budget: 12.50
+        max_trades_per_day: 3
+    tags: ["capital_sweep", "conservative"]
+    
+  E5.2:
+    name: "Capital Sweep - $50/day"
+    description: "Standard daily budget of $50 (default)."
+    enabled: true
+    # Uses defaults
+    tags: ["capital_sweep", "standard"]
+    
+  E5.3:
+    name: "Capital Sweep - $100/day"
+    description: "Aggressive daily budget of $100."
+    enabled: true
+    overrides:
+      capital:
+        daily_budget: 100.0
+        daily_risk_budget: 50.0
+        max_trades_per_day: 10
+    tags: ["capital_sweep", "aggressive"]
+    
+  E5.4:
+    name: "Capital Sweep - $200/day"
+    description: "Very aggressive daily budget of $200."
+    enabled: true
+    overrides:
+      capital:
+        daily_budget: 200.0
+        daily_risk_budget: 100.0
+        max_trades_per_day: 20
+    tags: ["capital_sweep", "very_aggressive"]
+
+# Experiment Groups (for batch execution)
+groups:
+  baseline:
+    description: "Baseline experiments for comparison"
+    experiments: [E1.0, E1.1]
+    
+  selection:
+    description: "Trade selection algorithm comparison"
+    experiments: [E2.1, E2.2]
+    
+  rebalancing:
+    description: "Rebalancing frequency comparison"
+    experiments: [E4.0, E4.1]
+    
+  capital_sweep:
+    description: "Daily budget parameter sweep"
+    experiments: [E5.1, E5.2, E5.3, E5.4]
+    
+  all_enabled:
+    description: "All enabled experiments"
+    experiments: [E1.0, E1.1, E2.1, E4.0, E4.1, E5.1, E5.2, E5.3, E5.4]

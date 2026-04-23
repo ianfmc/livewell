@@ -1,0 +1,41 @@
+# JS / Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+*.env.*
+!*.env.example
+dist/
+build/
+*.parquet
+
+# Data / ML artifacts
+*.pkl
+*.joblib
+*.h5
+*.onnx
+data/local-cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Coverage
+coverage/
+.coverage
+htmlcov/
+
+# git worktrees
+.worktrees/

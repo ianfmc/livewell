@@ -1,0 +1,108 @@
+# Strategy Configuration
+# SINGLE SOURCE OF TRUTH for trading strategy parameters
+# Updated based on backtesting results (nadex-backtesting.ipynb)
+
+rsi:
+  period: 14
+  mode: reversal           # centerline | reversal
+  centerline: 50           # used if mode=centerline
+  oversold: 25             # OPTIMIZED: Conservative strategy (was 30)
+  overbought: 75           # OPTIMIZED: Conservative strategy (was 70)
+  require_cross: true      # if mode=reversal, wait for cross back through level
+
+# Strike Filtering (from backtesting Section 14-15)
+strike_filter:
+  enabled: true
+  distance_pct: 0.10       # ±10% from Expected Value (optimal per backtesting)
+  description: "Filter strikes to ±10% of Expected Value. Reduces noise from extreme OTM/ITM strikes."
+
+trend:                     # optional trend filter
+  type: none               # none | macd | sma (currently disabled for RSI-only strategy)
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  sma_window: 50
+
+# Risk Management & Position Sizing
+# Combines capital allocation rules and trade execution limits
+risk_management:
+  # Capital Allocation (from backtesting Section 16)
+  capital:
+    starting_amount: 500.0
+    daily_allocation_pct: 0.10        # Max 10% of available capital per day
+    max_position_size: null            # Optional: max $ per single position (null = no limit)
+    description: "Start with $500. Use max 10% of available capital per day. Capital grows over time."
+  
+  # Trade Execution Limits
+  guardrails:
+    confidence_threshold: 0.3          # Min confidence score to generate recommendation
+    max_positions_per_day: 3           # Max number of new positions per day
+    max_positions_total: 10            # Max total open positions (optional)
+    require_stop_loss: false           # Require stop loss for each trade
+    max_drawdown_pct: 0.15            # Pause trading if drawdown exceeds 15%
+  
+  # Position Sizing Strategy
+  sizing_method: "fixed_percentage"    # fixed_percentage | kelly_criterion | fixed_dollar
+  description: |
+    Risk management controls capital allocation and trade execution.
+    - Capital rules prevent over-leverage
+    - Guardrails limit number of positions and require minimum confidence
+    - Position sizing uses fixed percentage (10% daily) with compounding
+
+# Backtesting Results (from nadex-backtesting.ipynb)
+# Last updated: 2025-12-01
+# Update monthly after running full backtest
+backtesting:
+  last_run_date: "2025-12-01"
+  data_period: "March 2025 to November 2025"
+  total_days: 180
+  
+  # Optimal Configuration: Conservative RSI + ±10% Strike Filter + Active Tickers Only
+  optimal_config:
+    strategy: "Conservative RSI (14, 25/75)"
+    strike_filter: "±10%"
+    ticker_filter: "active: true only (from ticker_mappings.yaml)"
+  
+  # Performance Metrics (update these after each monthly backtest)
+  metrics:
+    total_trades: 13522           # Update from Section 15
+    win_rate: 0.5671              # 56.71% - Update from Section 15
+    total_pnl: 6945.00            # Update from Section 15
+    total_return_pct: 9.96        # Update from Section 15
+    capital_used: 69736.00        # Update from Section 15
+    sharpe_ratio: null            # Calculate if needed
+  
+  # Comparison to alternatives
+  alternatives_tested:
+    baseline:
+      description: "All strikes, all tickers"
+      trades: 20613
+      win_rate: 0.5428
+      total_pnl: 6580.00
+      return_pct: 6.25
+    
+    strike_5pct_only:
+      description: "±5% strike filter only"
+      trades: 20342
+      win_rate: 0.5416
+      total_pnl: 6397.50
+      return_pct: 6.16
+    
+    strike_5pct_filtered:
+      description: "±5% strike filter + active tickers"
+      trades: 13306
+      win_rate: 0.5666
+      total_pnl: 6835.00
+      return_pct: 9.97
+  
+  notes: |
+    Optimal strategy identified: Conservative RSI (14, 25/75) with ±10% strike filter
+    and active ticker filtering. 
+    - ±10% strike filter provides better results than ±5% (+$110 P&L, +216 trades)
+    - Active ticker filtering (ticker_mappings.yaml) improves win rate by +2.4pp
+    - Strategy validated on full 180+ day dataset after S3 pagination bug fix
+    - Results stable across data periods, indicating good generalization
+
+notebook:                  # notebook execution settings
+  run_diagnostic_tests: false
+  test_tickers: ['ES=F', 'NQ=F', 'GC=F', 'CL=F', 'EURUSD=X', 'GBPUSD=X']

@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# PyCharm / IntelliJ
+.idea/
+
+# macOS system files
+.DS_Store
+
+# pytest
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage*
+.cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Config overrides (local only)
+configs/local_*.yaml
+
+# Logs
+logs/
+*.log
+
+# OS / editor junk
+*~
+*.swp
+*.swo

@@ -1,0 +1,4 @@
+exp_id: "exp_2025_09_15a"
+seed: 42
+tags: ["ema_cross", "baseline"]
+notes: "Initial baseline comparison vs. buy-and-hold"

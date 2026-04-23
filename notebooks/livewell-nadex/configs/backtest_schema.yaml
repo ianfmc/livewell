@@ -1,0 +1,81 @@
+# backtest_schema.yaml
+# Defines the schema for backtest results saved to S3
+# Used by: nadex-backtesting.ipynb (save) and nadex-kpi-report.ipynb (load)
+
+version: "1.0"
+
+# S3 path structure
+s3_paths:
+  prefix: "backtest/results"
+  # Use {date} placeholder for YYYY-MM-DD format
+  # Latest results also saved to "latest/" for easy access
+  
+outputs:
+  # Raw trade data from backtesting
+  trades:
+    filename: "trades.csv"
+    format: csv
+    description: "Individual trades with P&L"
+    columns:
+      - Date           # Trade date
+      - Ticker         # Instrument ticker
+      - Exp Value      # Expected/underlying value
+      - Strike Price   # Contract strike price
+      - In the Money   # 1 if ITM at expiration, 0 otherwise
+      - rsi            # RSI value at signal
+      - signal         # 1 (buy), -1 (sell), 0 (no action)
+      - entry_cost     # Cost to enter trade ($2.50, $5.00, or $7.50)
+      - pnl            # Profit/loss for this trade
+
+  # Aggregated KPI metrics
+  kpi_summary:
+    filename: "kpi_summary.json"
+    format: json
+    description: "Pre-calculated KPIs for dashboard"
+    fields:
+      # Basic stats
+      - win_rate         # float: 0.0 to 1.0
+      - total_trades     # int
+      - wins             # int
+      - losses           # int
+      
+      # P&L metrics
+      - gross_pnl        # float: total P&L before commissions
+      - commissions      # float: total commissions paid
+      - net_pnl          # float: gross_pnl - commissions
+      
+      # Risk metrics
+      - max_drawdown     # float: max peak-to-trough decline ($)
+      - max_drawdown_pct # float: max drawdown as percentage
+      - recovery_days    # int: days to recover from max drawdown
+      
+      # Date range
+      - date_start       # str: YYYY-MM-DD
+      - date_end         # str: YYYY-MM-DD
+      
+      # Metadata
+      - generated_at     # str: ISO timestamp
+      - strategy_params  # dict: RSI period, oversold, overbought
+      - commission_rate  # float: per-contract commission
+
+  # Daily time series for charts
+  daily_metrics:
+    filename: "daily_metrics.csv"
+    format: csv
+    description: "Daily aggregated metrics for charts"
+    columns:
+      - Date             # Date
+      - daily_pnl        # P&L for that day
+      - cumulative_pnl   # Running cumulative P&L
+      - running_max      # Running max cumulative P&L (for drawdown calc)
+      - drawdown         # Current drawdown from peak
+
+# Strategy configuration that produced these results
+strategy:
+  name: "Conservative RSI"
+  parameters:
+    rsi_period: 14
+    oversold: 25
+    overbought: 75
+    strike_filter_pct: 0.10  # ±10% from Exp Value
+    excluded_tickers: []     # Bottom performers to exclude

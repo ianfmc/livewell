@@ -1,0 +1,9 @@
+abort_thresholds:
+  pnl_sigma: 3              # abort if |pnl z-score| > 3
+  drift_psi: 0.3            # population stability index threshold
+  missing_data_ok: false
+limits:
+  max_daily_loss: -200.0
+  max_drawdown_pct: 0.2
+notifications:
+  channel: "#livewell-ops"

@@ -1,0 +1,14 @@
+metric,value
+win_rate,0.5297
+total_trades,22267
+wins,11795
+losses,10472
+gross_pnl,5052.50
+commissions,22267.00
+net_pnl,-17214.50
+max_drawdown,-1812.50
+max_drawdown_pct,-35.87
+recovery_days,84
+date_start,2025-03-03
+date_end,2025-11-20
+generated_at,2025-12-12T14:48:06.539077

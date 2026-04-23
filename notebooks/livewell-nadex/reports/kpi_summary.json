@@ -1,0 +1,29 @@
+{
+  "win_rate": 0.5671564645942553,
+  "total_trades": 13543,
+  "wins": 7681,
+  "losses": 5862,
+  "gross_pnl": 6955.0,
+  "commissions": 1354.3000000000002,
+  "net_pnl": 5600.7,
+  "max_drawdown": -410.0,
+  "max_drawdown_pct": -5.8950395398993525,
+  "recovery_days": 14,
+  "date_start": "2025-03-20",
+  "date_end": "2025-12-09",
+  "generated_at": "2025-12-15T10:33:47.053105",
+  "strategy_params": {
+    "rsi_period": 14,
+    "oversold": 25,
+    "overbought": 75,
+    "strike_filter_pct": 0.1,
+    "excluded_tickers": [
+      "USDCHF=X",
+      "USDCAD=X",
+      "GBPUSD=X",
+      "AUDUSD=X",
+      "USDMXN=X"
+    ],
+    "commission_rate": 0.1
+  }
+}

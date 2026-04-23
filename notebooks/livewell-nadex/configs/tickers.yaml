@@ -1,0 +1,12 @@
+# DEPRECATED - DO NOT USE
+# This file has been replaced by ticker_mappings.yaml
+# 
+# All ticker configuration is now managed in ticker_mappings.yaml as a single source of truth.
+# That file contains:
+# - All ticker symbols with metadata (display_name, description, asset_class)
+# - Active/inactive flags to control which tickers are actively traded
+# - Test tickers list
+#
+# To enable/disable a ticker for trading, edit ticker_mappings.yaml and change the 'active' flag.
+#
+# This file is kept only for reference and will be removed in a future sprint.

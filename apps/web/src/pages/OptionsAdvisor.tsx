@@ -37,9 +37,9 @@ const MARKETS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'Gold', 'US 500'];
 
 function candidateExplanation(
   regime: string,
-  trend: string | null,
-  volatility: string | null,
-  eventRisk: string | null
+  trend: string,
+  volatility: string,
+  eventRisk: string
 ): string {
   const notes: string[] = [];
   if (regime === trend) notes.push(`regime matches selected trend (${trend})`);
@@ -193,7 +193,7 @@ const OptionsAdvisor = () => {
                           {c.instrument} @ {c.strike} — {c.expiry}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {candidateExplanation(c.regime, state.trend, state.volatility, state.eventRisk)}
+                          {candidateExplanation(c.regime, state.trend!, state.volatility!, state.eventRisk!)}
                         </Typography>
                       </Box>
                       <Chip

@@ -38,10 +38,13 @@ const SignalTracker = () => {
     );
   }, [data, recFilter, outcomeFilter]);
 
-  const taken = data.filter((s) => s.actionTaken === 'Taken');
-  const wins = taken.filter((s) => s.outcome === 'Win');
-  const pending = data.filter((s) => s.outcome === 'Pending');
-  const winRate = taken.length > 0 ? `${Math.round((wins.length / taken.length) * 100)}%` : '—';
+  const stats = useMemo(() => {
+    const taken = data.filter((s) => s.actionTaken === 'Taken');
+    const wins = taken.filter((s) => s.outcome === 'Win');
+    const pending = data.filter((s) => s.outcome === 'Pending');
+    const winRate = taken.length > 0 ? `${Math.round((wins.length / taken.length) * 100)}%` : '—';
+    return { taken, wins, pending, winRate };
+  }, [data]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -65,9 +68,9 @@ const SignalTracker = () => {
           <Grid container spacing={2} sx={{ mb: 4 }}>
             {[
               { label: 'Total Signals',       value: String(data.length) },
-              { label: 'Taken',               value: String(taken.length) },
-              { label: 'Win Rate (Taken)',     value: winRate },
-              { label: 'Pending',             value: String(pending.length) },
+              { label: 'Taken',               value: String(stats.taken.length) },
+              { label: 'Win Rate (Taken)',     value: stats.winRate },
+              { label: 'Pending',             value: String(stats.pending.length) },
             ].map((item) => (
               <Grid key={item.label} size={{ xs: 6, sm: 3 }}>
                 <Paper sx={{ p: 3, textAlign: 'center' }}>

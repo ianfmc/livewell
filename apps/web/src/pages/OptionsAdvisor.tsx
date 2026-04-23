@@ -12,11 +12,14 @@ import Paper from '@mui/material/Paper';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import Stack from '@mui/material/Stack';
+import Step from '@mui/material/Step';
+import StepLabel from '@mui/material/StepLabel';
+import Stepper from '@mui/material/Stepper';
 import Typography from '@mui/material/Typography';
 import { mockContractDetails } from '../data/mockData';
 
 type AdvisorState = {
-  step: 1 | 2 | 3 | 'result';
+  step: 0 | 1 | 2 | 3;
   market: string | null;
   expiryWindow: '2-hour' | 'Daily' | null;
   trend: 'Bullish' | 'Bearish' | 'Neutral' | null;
@@ -25,7 +28,7 @@ type AdvisorState = {
 };
 
 const INITIAL: AdvisorState = {
-  step: 1,
+  step: 0,
   market: null,
   expiryWindow: null,
   trend: null,
@@ -34,6 +37,7 @@ const INITIAL: AdvisorState = {
 };
 
 const MARKETS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'Gold', 'US 500'];
+const STEP_LABELS = ['Select Market', 'Expiry Window', 'Current Regime'];
 
 function candidateExplanation(
   regime: string,
@@ -68,7 +72,17 @@ const OptionsAdvisor = () => {
         Answer a few questions to get filtered contract candidates for your current setup.
       </Typography>
 
-      {state.step === 1 && (
+      {state.step < 3 && (
+        <Stepper activeStep={state.step} sx={{ mb: 4 }}>
+          {STEP_LABELS.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      )}
+
+      {state.step === 0 && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>Step 1: Select a Market</Typography>
           <FormControl component="fieldset">
@@ -85,7 +99,7 @@ const OptionsAdvisor = () => {
             <Button
               variant="contained"
               disabled={!state.market}
-              onClick={() => update({ step: 2 })}
+              onClick={() => update({ step: 1 })}
             >
               Next
             </Button>
@@ -93,7 +107,7 @@ const OptionsAdvisor = () => {
         </Paper>
       )}
 
-      {state.step === 2 && (
+      {state.step === 1 && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>Step 2: Select Expiry Window</Typography>
           <FormControl component="fieldset">
@@ -106,11 +120,11 @@ const OptionsAdvisor = () => {
             </RadioGroup>
           </FormControl>
           <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-            <Button variant="outlined" onClick={() => update({ step: 1 })}>Back</Button>
+            <Button variant="outlined" onClick={() => update({ step: 0 })}>Back</Button>
             <Button
               variant="contained"
               disabled={!state.expiryWindow}
-              onClick={() => update({ step: 3 })}
+              onClick={() => update({ step: 2 })}
             >
               Next
             </Button>
@@ -118,7 +132,7 @@ const OptionsAdvisor = () => {
         </Paper>
       )}
 
-      {state.step === 3 && (
+      {state.step === 2 && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>Step 3: Describe Current Regime</Typography>
           <Stack spacing={3}>
@@ -160,11 +174,11 @@ const OptionsAdvisor = () => {
             </FormControl>
           </Stack>
           <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-            <Button variant="outlined" onClick={() => update({ step: 2 })}>Back</Button>
+            <Button variant="outlined" onClick={() => update({ step: 1 })}>Back</Button>
             <Button
               variant="contained"
               disabled={!state.trend || !state.volatility || !state.eventRisk}
-              onClick={() => update({ step: 'result' })}
+              onClick={() => update({ step: 3 })}
             >
               View Candidates
             </Button>
@@ -172,7 +186,7 @@ const OptionsAdvisor = () => {
         </Paper>
       )}
 
-      {state.step === 'result' && (
+      {state.step === 3 && (
         <Box>
           <Typography variant="h6" gutterBottom>Matching Candidates</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

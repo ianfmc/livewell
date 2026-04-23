@@ -39,3 +39,6 @@ htmlcov/
 
 # git worktrees
 .worktrees/
+
+# Playwright MCP snapshots
+.playwright-mcp/

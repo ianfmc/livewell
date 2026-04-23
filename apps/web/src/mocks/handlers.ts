@@ -1,6 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import { mockData, mockContractDetails } from '../data/mockData';
 import { mockDashboard } from '../data/mockDashboard';
+import { mockBacktest } from '../data/mockBacktest';
+import { mockModelHealth } from '../data/mockModelHealth';
+import { mockSignals } from '../data/mockSignalTracker';
 
 export const handlers = [
   http.get('/api/signals', () => {
@@ -22,4 +25,13 @@ export const handlers = [
       }
       return HttpResponse.json(detail);
     }),
+  http.get('/api/backtest/summary', () => {
+    return HttpResponse.json(mockBacktest);
+  }),
+  http.get('/api/model/health', () => {
+    return HttpResponse.json(mockModelHealth);
+  }),
+  http.get('/api/signals/tracker', () => {
+    return HttpResponse.json(mockSignals);
+  }),
 ];

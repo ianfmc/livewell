@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import signals, dashboard, backtest, model_health
+from routers import signals, dashboard, backtest, model_health, tracker
 
 app = FastAPI(title="LIVEWELL API", version="0.1.0")
 
@@ -20,3 +20,4 @@ app.include_router(signals.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(model_health.router, prefix="/api")
+app.include_router(tracker.router, prefix="/api")

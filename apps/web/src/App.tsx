@@ -17,11 +17,21 @@ import { Link, Route, Routes } from 'react-router-dom';
 import ContractDetail from './pages/ContractDetail';
 import Dashboard from './pages/Dashboard';
 import DailySignals from './pages/DailySignals';
+import BacktestResults from './pages/BacktestResults';
+import ModelHealth from './pages/ModelHealth';
+import HowItWorks from './pages/HowItWorks';
+import SignalTracker from './pages/SignalTracker';
+import OptionsAdvisor from './pages/OptionsAdvisor';
 import { useTheme } from './components/theme-provider';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/' },
-  { label: 'Daily Signals', path: '/signals' },
+  { label: 'Dashboard',        path: '/' },
+  { label: 'Daily Signals',    path: '/signals' },
+  { label: 'Backtest Results', path: '/backtest' },
+  { label: 'Model Health',     path: '/model-health' },
+  { label: 'How It Works',     path: '/how-it-works' },
+  { label: 'Signal Tracker',   path: '/tracker' },
+  { label: 'Options Advisor',  path: '/advisor' },
 ];
 
 const App = () => {
@@ -88,9 +98,14 @@ const App = () => {
         </Drawer>
 
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/signals" element={<DailySignals />} />
+          <Route path="/"             element={<Dashboard />} />
+          <Route path="/signals"      element={<DailySignals />} />
           <Route path="/signals/:instrument/:strike" element={<ContractDetail />} />
+          <Route path="/backtest"     element={<BacktestResults />} />
+          <Route path="/model-health" element={<ModelHealth />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/tracker"      element={<SignalTracker />} />
+          <Route path="/advisor"      element={<OptionsAdvisor />} />
         </Routes>
       </Box>
     </>

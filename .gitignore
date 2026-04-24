@@ -42,3 +42,6 @@ htmlcov/
 
 # Playwright MCP snapshots
 .playwright-mcp/
+
+# Superpowers brainstorm sessions
+.superpowers/

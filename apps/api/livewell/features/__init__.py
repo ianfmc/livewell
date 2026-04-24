@@ -1,1 +1,1 @@
-"""Technical indicators, regime features, and transforms."""
+"""Technical indicator feature generation from OHLCV to S3."""

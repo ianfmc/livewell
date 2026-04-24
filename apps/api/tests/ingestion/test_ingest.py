@@ -97,8 +97,9 @@ def test_run_ingestion_writes_to_s3(s3_bucket):
     }, index=pd.to_datetime(["2026-04-22"]))
 
     with patch("livewell.ingestion.ingest.yf.Ticker", return_value=mock_ticker):
-        with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
-            result = run_ingestion(instruments=["EURUSD"])
+        with patch("livewell.ingestion.ingest.run_features"):
+            with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+                result = run_ingestion(instruments=["EURUSD"])
 
     assert result["succeeded"] == ["EURUSD"]
     assert result["failed"] == []
@@ -116,8 +117,9 @@ def test_run_ingestion_isolates_failures(s3_bucket):
         return mock
 
     with patch("livewell.ingestion.ingest.yf.Ticker", side_effect=ticker_side_effect):
-        with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
-            result = run_ingestion(instruments=["EURUSD", "GBPUSD"])
+        with patch("livewell.ingestion.ingest.run_features"):
+            with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+                result = run_ingestion(instruments=["EURUSD", "GBPUSD"])
 
     assert "EURUSD" in result["succeeded"]
     assert "GBPUSD" in result["failed"]
@@ -137,8 +139,9 @@ def test_run_ingestion_backfill_uses_longer_lookback(s3_bucket):
         return mock
 
     with patch("livewell.ingestion.ingest.yf.Ticker", side_effect=ticker_side_effect):
-        with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
-            run_ingestion(instruments=["EURUSD"], backfill=True)
+        with patch("livewell.ingestion.ingest.run_features"):
+            with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+                run_ingestion(instruments=["EURUSD"], backfill=True)
 
     start = call_kwargs.get("start")
     end = call_kwargs.get("end")

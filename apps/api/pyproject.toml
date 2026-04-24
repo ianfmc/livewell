@@ -1,7 +1,7 @@
 [project]
 name = "livewell-api"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
@@ -10,6 +10,7 @@ dependencies = [
     "pandas>=3.0.2",
     "pyarrow>=24.0.0",
     "boto3>=1.42.95",
+    "pandas-ta",
 ]
 
 [dependency-groups]

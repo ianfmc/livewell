@@ -1,5 +1,5 @@
 import numpy as np
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import boto3
 import pandas as pd
 import pytest
@@ -157,3 +157,16 @@ def test_run_features_isolates_failures(s3_bucket):
 
     assert "EURUSD" in result["succeeded"]
     assert "GBPUSD" in result["failed"]
+
+
+def test_features_triggers_signals(s3_bucket):
+    """run_features() should call run_signals() with the same instruments list."""
+    make_price_parquet(BUCKET, "EURUSD", "1d", 2026, n=60)
+
+    mock_run_signals = MagicMock(return_value={"succeeded": ["EURUSD"], "failed": []})
+
+    with patch("livewell.features.features.run_signals", mock_run_signals):
+        with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+            run_features(instruments=["EURUSD"], intervals=["1d"])
+
+    mock_run_signals.assert_called_once_with(instruments=["EURUSD"])

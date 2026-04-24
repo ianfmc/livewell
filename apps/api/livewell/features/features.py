@@ -11,6 +11,7 @@ import pandas_ta as ta
 from livewell.ingestion.constants import INSTRUMENTS, INTERVALS
 from livewell.ingestion.s3 import read_parquet, write_parquet
 from livewell.features.constants import COLUMN_RENAMES, FEATURE_COLUMNS, FEATURES_PREFIX, PRICES_PREFIX
+from livewell.signals.signals import run_signals
 
 logger = logging.getLogger(__name__)
 
@@ -105,4 +106,10 @@ def run_features(
     succeeded = [i["s3_key"] for i in targets if i["s3_key"] not in failed]
 
     logger.info("features complete — succeeded: %s, failed: %s", succeeded, failed)
+
+    try:
+        run_signals(instruments=instruments)
+    except Exception as exc:
+        logger.error("signal generation failed: %s", exc)
+
     return {"succeeded": succeeded, "failed": failed}

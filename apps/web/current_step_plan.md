@@ -1,4 +1,9 @@
-# Current Step: Sub-project 1C — NADEX Strike Feasibility
+# Current Step: Sub-project 1D
+
+**Sub-project 1C status:** Complete
+- Derive NADEX contract outcomes from underlying close prices
+- Compute strike feasibility scores per instrument
+- Filter signals by feasibility before presenting to trader
 
 **Sub-project 1B status:** Complete
 - Reads all available OHLCV Parquet years from S3 per instrument+interval
@@ -25,8 +30,5 @@
 
 ---
 
-## Next: Sub-project 1C — NADEX Strike Feasibility
+## Next: Sub-project 1D — [TODO: Add 1D description]
 
-- Derive NADEX contract outcomes from underlying close prices
-- Compute strike feasibility scores per instrument
-- Filter signals by feasibility before presenting to trader

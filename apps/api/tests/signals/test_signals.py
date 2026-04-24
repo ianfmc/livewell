@@ -119,3 +119,138 @@ def test_reasoning_completeness():
     reasons = json.loads(result["reasoning"])
     assert isinstance(reasons, list)
     assert any("oversold" in r.lower() or "overextension" in r.lower() for r in reasons)
+
+
+import boto3
+import pytest
+from moto import mock_aws
+from unittest.mock import patch
+from livewell.signals.signals import run_signals
+from livewell.ingestion.s3 import write_parquet as _write
+
+BUCKET = "test-livewell"
+
+
+@pytest.fixture()
+def s3_bucket():
+    with mock_aws():
+        boto3.client("s3", region_name="us-east-1").create_bucket(Bucket=BUCKET)
+        yield
+
+
+def _write_feature_parquet(bucket, s3_key, interval, year, n=60):
+    """Write minimal feature Parquet (all columns, gentle bullish trend)."""
+    dates = pd.date_range(f"{year}-01-02", periods=n, freq="B")
+    # Force all timestamps to London-open UTC hour (09:00) for high session quality
+    dates = pd.DatetimeIndex([d.replace(hour=9) for d in dates]).tz_localize("UTC")
+    base = 1.1000
+    ema_20 = [base + i * 0.0001 for i in range(n)]
+    ema_50 = [base - 0.005 + i * 0.00005 for i in range(n)]
+    df = pd.DataFrame({
+        "date":        dates,
+        "ema_20":      ema_20,
+        "ema_50":      ema_50,
+        "rsi_14":      [55.0] * n,
+        "macd":        [0.0005] * n,
+        "macd_signal": [0.0003] * n,
+        "macd_hist":   [0.0002] * n,
+        "atr_14":      [0.0015] * n,
+    })
+    key = f"features/{s3_key}/{interval}/{year}.parquet"
+    _write(df, bucket, key)
+
+
+def _write_price_parquet(bucket, s3_key, interval, year, n=60):
+    """Write minimal price Parquet (date + close columns)."""
+    dates = pd.date_range(f"{year}-01-02", periods=n, freq="B")
+    dates = pd.DatetimeIndex([d.replace(hour=9) for d in dates]).tz_localize("UTC")
+    df = pd.DataFrame({
+        "date":  dates,
+        "open":  [1.0990] * n,
+        "high":  [1.1020] * n,
+        "low":   [1.0980] * n,
+        "close": [1.1000] * n,
+        "volume":[1000.0] * n,
+    })
+    key = f"prices/{s3_key}/{interval}/{year}.parquet"
+    _write(df, bucket, key)
+
+
+def test_run_signals_writes_to_s3(s3_bucket):
+    _write_feature_parquet(BUCKET, "EURUSD", "1d", 2026)
+    _write_price_parquet(BUCKET, "EURUSD", "1d", 2026)
+
+    with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+        result = run_signals(instruments=["EURUSD"], intervals=["1d"])
+
+    assert result["succeeded"] == ["EURUSD"]
+    assert result["failed"] == []
+
+    s3 = boto3.client("s3", region_name="us-east-1")
+    resp = s3.list_objects_v2(Bucket=BUCKET, Prefix="signals/EURUSD/1d/")
+    keys = [obj["Key"] for obj in resp.get("Contents", [])]
+    assert any("2026.parquet" in k for k in keys)
+
+
+def test_run_signals_output_schema(s3_bucket):
+    _write_feature_parquet(BUCKET, "EURUSD", "1d", 2026)
+    _write_price_parquet(BUCKET, "EURUSD", "1d", 2026)
+
+    with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+        run_signals(instruments=["EURUSD"], intervals=["1d"])
+
+    from livewell.ingestion.s3 import read_parquet
+    df = read_parquet(BUCKET, "signals/EURUSD/1d/2026.parquet")
+    assert df is not None
+    assert list(df.columns) == [
+        "date", "ema_20", "ema_50", "rsi_14",
+        "macd", "macd_signal", "macd_hist", "atr_14",
+        "trend_bias", "session_quality", "strike_candidate",
+        "signal_valid", "direction", "reasoning",
+    ]
+
+
+def test_run_signals_idempotent(s3_bucket):
+    _write_feature_parquet(BUCKET, "EURUSD", "1d", 2026)
+    _write_price_parquet(BUCKET, "EURUSD", "1d", 2026)
+
+    with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+        run_signals(instruments=["EURUSD"], intervals=["1d"])
+        run_signals(instruments=["EURUSD"], intervals=["1d"])
+
+    from livewell.ingestion.s3 import read_parquet
+    df = read_parquet(BUCKET, "signals/EURUSD/1d/2026.parquet")
+    assert df is not None
+    assert not df.duplicated(subset=["date"]).any()
+
+
+def test_run_signals_isolates_failures(s3_bucket):
+    _write_feature_parquet(BUCKET, "EURUSD", "1d", 2026)
+    _write_price_parquet(BUCKET, "EURUSD", "1d", 2026)
+    # GBPUSD: write features but NO prices → inner join → empty → error
+    _write_feature_parquet(BUCKET, "GBPUSD", "1d", 2026)
+
+    with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+        result = run_signals(instruments=["EURUSD", "GBPUSD"], intervals=["1d"])
+
+    assert "EURUSD" in result["succeeded"]
+    assert "GBPUSD" in result["failed"]
+
+
+def test_multi_year_continuity(s3_bucket):
+    _write_feature_parquet(BUCKET, "EURUSD", "1d", 2025, n=60)
+    _write_feature_parquet(BUCKET, "EURUSD", "1d", 2026, n=60)
+    _write_price_parquet(BUCKET, "EURUSD", "1d", 2025, n=60)
+    _write_price_parquet(BUCKET, "EURUSD", "1d", 2026, n=60)
+
+    with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+        run_signals(instruments=["EURUSD"], intervals=["1d"])
+
+    from livewell.ingestion.s3 import read_parquet
+    df_2025 = read_parquet(BUCKET, "signals/EURUSD/1d/2025.parquet")
+    df_2026 = read_parquet(BUCKET, "signals/EURUSD/1d/2026.parquet")
+    assert df_2025 is not None and len(df_2025) > 0
+    assert df_2026 is not None and len(df_2026) > 0
+    # No NaN bleed: trend_bias column has no nulls in valid rows
+    for df in [df_2025, df_2026]:
+        assert df["trend_bias"].notna().all()

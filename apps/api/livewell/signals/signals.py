@@ -134,3 +134,116 @@ def _apply_pipeline(s3_key: str, row: dict) -> dict:
         "direction": direction,
         "reasoning": json.dumps(reasons),
     }
+
+
+def _signals_one(instrument: dict, interval: str, bucket: str) -> None:
+    """Read features+prices for one instrument+interval, compute signals, write by year."""
+    s3_key = instrument["s3_key"]
+    s3 = boto3.client("s3")
+
+    # Read all feature Parquets for this instrument+interval
+    feature_prefix = f"{FEATURES_PREFIX}/{s3_key}/{interval}/"
+    resp = s3.list_objects_v2(Bucket=bucket, Prefix=feature_prefix)
+    objects = resp.get("Contents", [])
+    if not objects:
+        raise ValueError(f"no feature files found for {s3_key}/{interval}")
+
+    feature_frames = []
+    for obj in objects:
+        df = read_parquet(bucket, obj["Key"])
+        if df is not None:
+            feature_frames.append(df)
+    if not feature_frames:
+        raise ValueError(f"all feature reads returned None for {s3_key}/{interval}")
+
+    features = pd.concat(feature_frames, ignore_index=True)
+    features["date"] = pd.to_datetime(features["date"], utc=True)
+
+    # Read all price Parquets to get the close column
+    price_prefix = f"{PRICES_PREFIX}/{s3_key}/{interval}/"
+    resp = s3.list_objects_v2(Bucket=bucket, Prefix=price_prefix)
+    price_objects = resp.get("Contents", [])
+    if not price_objects:
+        raise ValueError(f"no price files found for {s3_key}/{interval}")
+
+    price_frames = []
+    for obj in price_objects:
+        df = read_parquet(bucket, obj["Key"])
+        if df is not None:
+            price_frames.append(df[["date", "close"]])
+    if not price_frames:
+        raise ValueError(f"all price reads returned None for {s3_key}/{interval}")
+
+    prices = pd.concat(price_frames, ignore_index=True)
+    prices["date"] = pd.to_datetime(prices["date"], utc=True)
+
+    # Inner join features + close on date
+    merged = features.merge(prices, on="date", how="inner")
+    merged = merged.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
+
+    if merged.empty:
+        raise ValueError(f"inner join produced empty DataFrame for {s3_key}/{interval}")
+
+    # Apply pipeline row-by-row
+    signal_rows = []
+    for _, row in merged.iterrows():
+        pipeline_out = _apply_pipeline(s3_key, row.to_dict())
+        signal_row = {col: row[col] for col in ["date", "ema_20", "ema_50", "rsi_14", "macd", "macd_signal", "macd_hist", "atr_14"]}
+        signal_row.update(pipeline_out)
+        signal_rows.append(signal_row)
+
+    signals_df = pd.DataFrame(signal_rows, columns=SIGNAL_COLUMNS)
+
+    # Write one Parquet per calendar year
+    for year, group in signals_df.groupby(signals_df["date"].dt.year):
+        key = f"{SIGNALS_PREFIX}/{s3_key}/{interval}/{int(year)}.parquet"
+        existing = read_parquet(bucket, key)
+        if existing is not None:
+            existing["date"] = pd.to_datetime(existing["date"], utc=True)
+            combined = pd.concat([existing, group], ignore_index=True)
+            combined["date"] = pd.to_datetime(combined["date"], utc=True)
+            group = combined.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
+        write_parquet(group, bucket, key)
+        logger.info("%s/%s/%s signals: %d rows", s3_key, interval, year, len(group))
+
+
+def run_signals(
+    instruments: list[str] | None = None,
+    intervals: list[str] | None = None,
+) -> dict:
+    """
+    Compute rule-based signals for all instruments and intervals.
+
+    Args:
+        instruments: list of s3_key values (e.g. ["EURUSD"]). Defaults to all.
+        intervals: list of interval strings (e.g. ["1d"]). Defaults to all.
+
+    Returns:
+        {"succeeded": [...], "failed": [...]}
+    """
+    bucket = os.environ["LIVEWELL_BUCKET"]
+    targets = (
+        [i for i in INSTRUMENTS if i["s3_key"] in instruments]
+        if instruments
+        else INSTRUMENTS
+    )
+    target_intervals = intervals if intervals else list(INTERVALS.keys())
+
+    failed_pairs: list[tuple[str, str]] = []
+
+    for instrument in targets:
+        for interval in target_intervals:
+            try:
+                _signals_one(instrument, interval, bucket)
+            except Exception as exc:
+                logger.error(
+                    "failed to compute signals %s/%s: %s",
+                    instrument["s3_key"], interval, exc,
+                )
+                failed_pairs.append((instrument["s3_key"], interval))
+
+    failed = list({s3_key for s3_key, _ in failed_pairs})
+    succeeded = [i["s3_key"] for i in targets if i["s3_key"] not in failed]
+
+    logger.info("signals complete — succeeded: %s, failed: %s", succeeded, failed)
+    return {"succeeded": succeeded, "failed": failed}

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
@@ -20,7 +20,7 @@ def fetch_ohlcv(
     lookback_days: int,
 ) -> pd.DataFrame | None:
     """Fetch OHLCV from yfinance for the last lookback_days. Returns None if empty."""
-    end = datetime.utcnow()
+    end = datetime.now(timezone.utc).replace(tzinfo=None)
     start = end - timedelta(days=lookback_days)
     raw = yf.Ticker(ticker).history(start=start, end=end, interval=interval)
     if raw.empty:
@@ -105,21 +105,21 @@ def run_ingestion(
         else INSTRUMENTS
     )
 
-    succeeded, failed = [], []
+    failed_pairs: list[tuple[str, str]] = []
 
     for instrument in targets:
         for interval in INTERVALS:
             try:
                 _ingest_one(instrument, interval, bucket, backfill)
-                if instrument["s3_key"] not in succeeded:
-                    succeeded.append(instrument["s3_key"])
             except Exception as exc:
                 logger.error(
                     "failed to ingest %s/%s: %s",
                     instrument["s3_key"], interval, exc,
                 )
-                if instrument["s3_key"] not in failed:
-                    failed.append(instrument["s3_key"])
+                failed_pairs.append((instrument["s3_key"], interval))
+
+    failed = list({s3_key for s3_key, _ in failed_pairs})
+    succeeded = [i["s3_key"] for i in targets if i["s3_key"] not in failed]
 
     logger.info("ingestion complete — succeeded: %s, failed: %s", succeeded, failed)
     return {"succeeded": succeeded, "failed": failed}

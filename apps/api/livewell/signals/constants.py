@@ -38,7 +38,7 @@ _STANDARD_SESSIONS = [
     (7,  12, "high"),   # London open
     (16, 21, "medium"), # NY afternoon
     (21, 23, "low"),    # Off-hours
-    # 23-07 (crosses midnight): Asian session = low
+    (23, 7, "low"),     # Asian session = low
 ]
 
 _JPY_SESSIONS = [
@@ -46,7 +46,7 @@ _JPY_SESSIONS = [
     (7,  12, "high"),
     (16, 21, "medium"),
     (21, 23, "low"),
-    # 23-07: Asian session = high for JPY
+    (23, 7, "high"),   # Asian session = high for JPY
 ]
 
 _EQUITY_SESSIONS = [

@@ -71,14 +71,14 @@ const ModelHealth = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Feature</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Status</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {data.features.map((f) => (
                   <TableRow key={f.name}>
                     <TableCell>{f.name}</TableCell>
-                    <TableCell>
+                    <TableCell align="center">
                       <Chip label={f.status} color={featureColor(f.status)} size="small" />
                     </TableCell>
                   </TableRow>

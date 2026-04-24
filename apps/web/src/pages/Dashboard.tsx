@@ -75,8 +75,8 @@ function TopCandidatesSection({ candidates }: { candidates: TopCandidate[] }) {
         {candidates.map((c) => (
           <Card key={`${c.instrument}-${c.strike}`}>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
-                <Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                <Box sx={{ textAlign: 'left' }}>
                   <Typography variant="subtitle1" fontWeight="bold">{c.instrument}</Typography>
                   <Typography variant="body2" color="text.secondary">
                     Strike: {c.strike} &nbsp;|&nbsp; Expiry: {(() => {

@@ -118,9 +118,9 @@ const SignalTracker = () => {
                   <TableCell>Market</TableCell>
                   <TableCell>Strike</TableCell>
                   <TableCell>Expiry</TableCell>
-                  <TableCell>Recommendation</TableCell>
+                  <TableCell align="center">Recommendation</TableCell>
                   <TableCell>Action</TableCell>
-                  <TableCell>Outcome</TableCell>
+                  <TableCell align="center">Outcome</TableCell>
                   <TableCell align="right">Edge</TableCell>
                   <TableCell align="right">Model Prob</TableCell>
                 </TableRow>
@@ -132,11 +132,11 @@ const SignalTracker = () => {
                     <TableCell>{s.market}</TableCell>
                     <TableCell>{s.strike}</TableCell>
                     <TableCell>{s.expiry}</TableCell>
-                    <TableCell>
+                    <TableCell align="center">
                       <Chip label={s.recommendation} color={recColor(s.recommendation)} size="small" />
                     </TableCell>
                     <TableCell>{s.actionTaken ?? '—'}</TableCell>
-                    <TableCell>
+                    <TableCell align="center">
                       <Chip label={s.outcome} color={outcomeColor(s.outcome)} size="small" />
                     </TableCell>
                     <TableCell align="right">{(s.edge * 100).toFixed(0)}%</TableCell>

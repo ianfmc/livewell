@@ -1,4 +1,11 @@
-# Current Step: Sub-project 1D
+# Current Step: Phase 2 — Baseline ML Layer
+
+**Phase 1D status:** Complete
+- Vite proxy: `/api/*` forwarded to `localhost:8000`
+- MSW gated behind `VITE_USE_MOCKS=true` (off by default in dev; on for tests)
+- 3 new FastAPI routes with hardcoded stubs
+- CORS expanded to cover ports 5173–5175 + 4173
+- 65 frontend tests passing, 14 backend tests passing
 
 **Sub-project 1C status:** Complete
 - Derive NADEX contract outcomes from underlying close prices
@@ -21,14 +28,15 @@
 - CLI: `uv run python -m livewell.ingestion.cli [--instruments ...] [--backfill]`
 - Lambda-ready: `run_ingestion()` callable from thin handler, config via env vars
 
-**Phase 1D status:** Complete
-- Vite proxy: `/api/*` forwarded to `localhost:8000`
-- MSW gated behind `VITE_USE_MOCKS=true` (off by default in dev; on for tests)
-- 3 new FastAPI routes with hardcoded stubs
-- CORS expanded to cover ports 5173–5175 + 4173
-- 65 frontend tests passing, 14 backend tests passing
-
 ---
 
-## Next: Sub-project 1D — [TODO: Add 1D description]
+## Next: Phase 2 — Baseline ML Layer
 
+Goal: add probability estimation using simple, interpretable models.
+
+Deliverables (from roadmap):
+- labeled dataset construction
+- logistic regression baseline
+- walk-forward validation
+- calibration analysis
+- comparison of rules-only vs rules-plus-model

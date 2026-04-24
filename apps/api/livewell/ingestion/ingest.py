@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import yfinance as yf
 
+from livewell.features.features import run_features
 from livewell.ingestion.constants import INSTRUMENTS, INTERVALS, S3_PREFIX
 from livewell.ingestion.s3 import read_parquet, write_parquet
 
@@ -120,6 +121,11 @@ def run_ingestion(
 
     failed = list({s3_key for s3_key, _ in failed_pairs})
     succeeded = [i["s3_key"] for i in targets if i["s3_key"] not in failed]
+
+    try:
+        run_features(instruments=instruments)
+    except Exception as exc:
+        logger.error("feature generation failed: %s", exc)
 
     logger.info("ingestion complete — succeeded: %s, failed: %s", succeeded, failed)
     return {"succeeded": succeeded, "failed": failed}

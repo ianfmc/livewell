@@ -145,3 +145,17 @@ def test_run_ingestion_backfill_uses_longer_lookback(s3_bucket):
     assert start is not None and end is not None
     delta = end - start
     assert delta.days >= 365 * 2 - 5  # at least ~2 years lookback
+
+
+def test_ingestion_triggers_features(s3_bucket):
+    mock_ticker = MagicMock()
+    mock_ticker.history.return_value = pd.DataFrame({
+        "Open": [1.0], "High": [1.1], "Low": [0.9], "Close": [1.05], "Volume": [1000.0]
+    }, index=pd.to_datetime(["2026-04-22"]))
+
+    with patch("livewell.ingestion.ingest.yf.Ticker", return_value=mock_ticker):
+        with patch("livewell.ingestion.ingest.run_features") as mock_run_features:
+            with patch.dict("os.environ", {"LIVEWELL_BUCKET": BUCKET}):
+                run_ingestion(instruments=["EURUSD"])
+
+    mock_run_features.assert_called_once_with(instruments=["EURUSD"])

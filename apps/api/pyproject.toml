@@ -11,6 +11,7 @@ dependencies = [
     "pyarrow>=24.0.0",
     "boto3>=1.42.95",
     "pandas-ta",
+    "scikit-learn>=1.8.0",
 ]
 
 [dependency-groups]

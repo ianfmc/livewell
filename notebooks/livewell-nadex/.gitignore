@@ -45,3 +45,6 @@ logs/
 *~
 *.swp
 *.swo
+
+# Data directories
+data/

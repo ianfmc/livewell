@@ -12,6 +12,8 @@ dependencies = [
     "boto3>=1.42.95",
     "pandas-ta",
     "scikit-learn>=1.8.0",
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.9",
 ]
 
 [dependency-groups]

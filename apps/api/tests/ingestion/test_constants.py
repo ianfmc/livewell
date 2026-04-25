@@ -2,7 +2,7 @@ from livewell.ingestion.constants import INSTRUMENTS, INTERVALS, S3_PREFIX
 
 
 def test_instruments_count():
-    assert len(INSTRUMENTS) == 5
+    assert len(INSTRUMENTS) == 19
 
 
 def test_instruments_have_required_keys():
@@ -16,7 +16,7 @@ def test_intervals():
     assert set(INTERVALS.keys()) == {"1d", "1h"}
     assert INTERVALS["1d"]["lookback_days"] == 7
     assert INTERVALS["1h"]["lookback_days"] == 30
-    assert INTERVALS["1d"]["backfill_years"] == 2
+    assert INTERVALS["1d"]["backfill_years"] == 7
     assert INTERVALS["1h"]["backfill_years"] == 2
 
 

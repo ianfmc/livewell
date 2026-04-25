@@ -254,3 +254,103 @@ def test_multi_year_continuity(s3_bucket):
     # No NaN bleed: trend_bias column has no nulls in valid rows
     for df in [df_2025, df_2026]:
         assert df["trend_bias"].notna().all()
+
+
+def test_session_commodity_nymex_high():
+    # CL at 14:00 UTC → NYMEX primary session → high
+    ts = pd.Timestamp("2026-01-15 14:00:00", tz="UTC")
+    assert _session_quality("CL", ts) == "high"
+
+
+def test_session_commodity_early_morning_high():
+    # CL at 09:00 UTC → early NY morning ramp-up → high
+    ts = pd.Timestamp("2026-01-15 09:00:00", tz="UTC")
+    assert _session_quality("CL", ts) == "high"
+
+
+def test_session_commodity_overnight_medium():
+    # NG at 02:00 UTC → overnight continuous → medium
+    ts = pd.Timestamp("2026-01-15 02:00:00", tz="UTC")
+    assert _session_quality("NG", ts) == "medium"
+
+
+def test_session_asian_equity_tokyo_high():
+    # NKD at 01:00 UTC → Tokyo session → high
+    ts = pd.Timestamp("2026-01-15 01:00:00", tz="UTC")
+    assert _session_quality("NKD", ts) == "high"
+
+
+def test_session_asian_equity_ny_low():
+    # NKD at 15:00 UTC → NY hours → low
+    ts = pd.Timestamp("2026-01-15 15:00:00", tz="UTC")
+    assert _session_quality("NKD", ts) == "low"
+
+
+def test_session_emerging_ny_afternoon_high():
+    # USDMXN at 18:00 UTC → NY afternoon → high
+    ts = pd.Timestamp("2026-01-15 18:00:00", tz="UTC")
+    assert _session_quality("USDMXN", ts) == "high"
+
+
+def test_session_jpy_cross_asian_high():
+    # GBPJPY at 02:00 UTC → Tokyo session → high
+    ts = pd.Timestamp("2026-01-15 02:00:00", tz="UTC")
+    assert _session_quality("GBPJPY", ts) == "high"
+
+
+def test_session_forex_major_audusd_london_high():
+    # AUDUSD at 09:00 UTC → London open → high
+    ts = pd.Timestamp("2026-01-15 09:00:00", tz="UTC")
+    assert _session_quality("AUDUSD", ts) == "high"
+
+
+def test_session_forex_major_audusd_asian_low():
+    # AUDUSD at 02:00 UTC → Asian session → low
+    ts = pd.Timestamp("2026-01-15 02:00:00", tz="UTC")
+    assert _session_quality("AUDUSD", ts) == "low"
+
+
+def test_pipeline_new_futures_instrument_bullish():
+    # NQ behaves like an equity — uses _EQUITY_SESSIONS and PIP_PRECISION=0
+    row = {
+        "date": pd.Timestamp("2026-01-15 15:00:00", tz="UTC"),
+        "ema_20": 21010.0, "ema_50": 21000.0,
+        "rsi_14": 55.0,
+        "macd": 5.0, "macd_signal": 3.0, "macd_hist": 2.0,
+        "atr_14": 25.0,
+        "close": 21005.0,
+    }
+    result = _apply_pipeline("NQ", row)
+    assert result["signal_valid"] is True
+    assert result["direction"] == "buy"
+    assert result["strike_candidate"] == round(21005.0 + 25.0 * 0.5, 0)
+
+
+def test_pipeline_new_futures_instrument_low_atr():
+    # NQ with ATR below MIN_ATR_THRESHOLD (20.0) → signal_valid=False
+    row = {
+        "date": pd.Timestamp("2026-01-15 15:00:00", tz="UTC"),
+        "ema_20": 21010.0, "ema_50": 21000.0,
+        "rsi_14": 55.0,
+        "macd": 5.0, "macd_signal": 3.0, "macd_hist": 2.0,
+        "atr_14": 10.0,
+        "close": 21005.0,
+    }
+    result = _apply_pipeline("NQ", row)
+    assert result["signal_valid"] is False
+    assert "atr" in result["reasoning"].lower()
+
+
+def test_pipeline_crude_oil_pip_precision():
+    # CL uses pip_precision=2 → strike rounded to 2 decimal places
+    row = {
+        "date": pd.Timestamp("2026-01-15 15:00:00", tz="UTC"),
+        "ema_20": 75.10, "ema_50": 75.00,
+        "rsi_14": 55.0,
+        "macd": 0.05, "macd_signal": 0.03, "macd_hist": 0.02,
+        "atr_14": 0.50,
+        "close": 75.05,
+    }
+    result = _apply_pipeline("CL", row)
+    assert result["signal_valid"] is True
+    assert result["strike_candidate"] == round(75.05 + 0.50 * 0.5, 2)

@@ -5,7 +5,9 @@ description = "LIVEWELL Nadex workflow: results extraction, recommendation engin
 requires-python = ">=3.10"
 
 # Leave dependencies empty for now and keep requirements.txt for runtime installs.
-dependencies = []
+dependencies = [
+    "pandas>=2.3.3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

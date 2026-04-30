@@ -20,7 +20,7 @@ It loads the existing labeled dataset and fold assignments from Phase 2, builds 
 
 **Fold structure:** Same 6-month train / 1-month test walk-forward windows as Phase 2. Fold assignments are recomputed using the same `assign_walk_forward_folds` logic from notebook 02 (no dependency on notebook 02's output file — recompute in notebook 05 for self-containment).
 
-**Feature matrix (11 features):**
+**Feature matrix (12 features):**
 
 | Feature | Source | Notes |
 |---|---|---|

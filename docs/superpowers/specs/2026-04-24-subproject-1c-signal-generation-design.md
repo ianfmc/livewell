@@ -68,6 +68,8 @@ Each Parquet file covers one calendar year per instrument per interval.
 | `signal_valid` | bool | True only when all 5 stages pass |
 | `direction` | string | `"buy"`, `"sell"`, or `"none"` |
 | `reasoning` | string | JSON-serialised list of strings explaining pass/fail per condition |
+| `timing_slot` | string | `preferred_action` of nearest preceding timing slot, or `"unscheduled"` (informational only) |
+| `timing_risk` | string | `risk_level` of nearest preceding timing slot, or `"unknown"` (informational only) |
 
 ### Config
 
@@ -255,6 +257,14 @@ Each instrument+interval pair is processed in a try/except block. A failed pair 
 - Session boundary transitions: row timestamped exactly at session boundary edge
 - Pip precision per instrument: all 5 instruments produce correctly rounded strikes
 - End-to-end integration: `run_ingestion()` → `run_features()` → `run_signals()` with moto S3
+
+---
+
+## Timing Annotation
+
+An informational extension to the pipeline adds two columns — `timing_slot` and `timing_risk` — derived from asset-class timing tables in `docs/nadex_timing_tables.md`. These describe how market structure changes at key intraday moments, providing context for how far in or out of the money a NADEX binary may move before expiry. They are appended to every signal row but never affect `signal_valid`.
+
+See `docs/superpowers/specs/2026-04-30-timing-annotation-design.md` for full design detail, constants, and test coverage.
 
 ---
 

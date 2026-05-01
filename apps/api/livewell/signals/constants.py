@@ -163,6 +163,9 @@ INSTRUMENT_ASSET_CLASS = {
 
 # Each entry: (utc_hour, utc_minute, preferred_action, risk_level)
 # Sorted ascending by time. PT to UTC assumes UTC-7 (PDT).
+# preferred_action values: buy_bullish, buy_bearish, sell_bullish_buy_bearish,
+#   buy_bullish_eurusd, buy_bullish_usdjpy, buy_bullish_gold, buy_bullish_crude,
+#   buy_bearish_natgas, close_positions, avoid
 TIMING_SLOTS = {
     "indices": [
         (13, 30, "buy_bullish",              "moderate_high"),

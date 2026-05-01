@@ -1,12 +1,18 @@
 import json
 
+import boto3
 import pandas as pd
+import pytest
+from moto import mock_aws
+from unittest.mock import patch
+
 from livewell.signals.constants import (
     INSTRUMENT_ASSET_CLASS,
     SIGNAL_COLUMNS,
     TIMING_SLOTS,
 )
-from livewell.signals.signals import _apply_pipeline, _session_quality
+from livewell.signals.signals import _apply_pipeline, _session_quality, run_signals
+from livewell.ingestion.s3 import write_parquet as _write
 
 
 def test_signal_columns_defined():
@@ -33,10 +39,12 @@ def test_timing_constants_defined():
         assert asset_class in TIMING_SLOTS
         assert len(TIMING_SLOTS[asset_class]) > 0
 
-    # Each slot is a 4-tuple
+    # Each slot is a 4-tuple with non-empty string action and risk values
     for asset_class, slots in TIMING_SLOTS.items():
         for slot in slots:
             assert len(slot) == 4, f"slot {slot} in {asset_class} should be 4-tuple"
+            assert isinstance(slot[2], str) and slot[2], f"slot {slot} in {asset_class} has empty/non-string preferred_action"
+            assert isinstance(slot[3], str) and slot[3], f"slot {slot} in {asset_class} has empty/non-string risk_level"
 
     # New columns are in SIGNAL_COLUMNS
     assert "timing_slot" in SIGNAL_COLUMNS
@@ -150,13 +158,6 @@ def test_reasoning_completeness():
     assert isinstance(reasons, list)
     assert any("oversold" in r.lower() or "overextension" in r.lower() for r in reasons)
 
-
-import boto3
-import pytest
-from moto import mock_aws
-from unittest.mock import patch
-from livewell.signals.signals import run_signals
-from livewell.ingestion.s3 import write_parquet as _write
 
 BUCKET = "test-livewell"
 

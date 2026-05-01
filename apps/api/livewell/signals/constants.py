@@ -7,6 +7,7 @@ SIGNAL_COLUMNS = [
     "macd", "macd_signal", "macd_hist", "atr_14",
     "trend_bias", "session_quality", "strike_candidate",
     "signal_valid", "direction", "reasoning",
+    "timing_slot", "timing_risk",
 ]
 
 RSI_BULLISH_MIN = 50
@@ -133,4 +134,52 @@ SESSION_CONFIG = {
     "USDCAD": _FOREX_MAJOR_SESSIONS,
     "USDCHF": _FOREX_MAJOR_SESSIONS,
     "USDMXN": _EMERGING_SESSIONS,
+}
+
+INSTRUMENT_ASSET_CLASS = {
+    # Original instruments
+    "EURUSD": "forex",
+    "GBPUSD": "forex",
+    "USDJPY": "forex",
+    "XAUUSD": "commodities",
+    "US500":  "indices",
+    # Futures
+    "CL":  "commodities",
+    "NG":  "commodities",
+    "NQ":  "indices",
+    "RTY": "indices",
+    "YM":  "indices",
+    "NKD": "indices",
+    # Forex
+    "AUDUSD": "forex",
+    "AUDJPY": "forex",
+    "EURJPY": "forex",
+    "EURGBP": "forex",
+    "GBPJPY": "forex",
+    "USDCAD": "forex",
+    "USDCHF": "forex",
+    "USDMXN": "forex",
+}
+
+# Each entry: (utc_hour, utc_minute, preferred_action, risk_level)
+# Sorted ascending by time. PT to UTC assumes UTC-7 (PDT).
+TIMING_SLOTS = {
+    "indices": [
+        (13, 30, "buy_bullish",              "moderate_high"),
+        (14, 30, "sell_bullish_buy_bearish", "moderate"),
+        (16,  0, "avoid",                    "low"),
+        (19, 55, "buy_bearish",              "high"),
+    ],
+    "forex": [
+        ( 7,  0, "buy_bullish_eurusd",  "moderate"),
+        (12,  0, "buy_bullish_usdjpy",  "high"),
+        (15,  0, "close_positions",     "low"),
+        (16,  0, "avoid",               "low_moderate"),
+    ],
+    "commodities": [
+        ( 7,  0, "buy_bullish_gold",   "moderate"),
+        (13, 30, "buy_bullish_crude",  "moderate_high"),
+        (14, 30, "buy_bearish_natgas", "very_high"),
+        (16,  0, "avoid",              "low"),
+    ],
 }

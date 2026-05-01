@@ -1,7 +1,11 @@
 import json
 
 import pandas as pd
-from livewell.signals.constants import SIGNAL_COLUMNS
+from livewell.signals.constants import (
+    INSTRUMENT_ASSET_CLASS,
+    SIGNAL_COLUMNS,
+    TIMING_SLOTS,
+)
 from livewell.signals.signals import _apply_pipeline, _session_quality
 
 
@@ -11,8 +15,34 @@ def test_signal_columns_defined():
         "macd", "macd_signal", "macd_hist", "atr_14",
         "trend_bias", "session_quality", "strike_candidate",
         "signal_valid", "direction", "reasoning",
+        "timing_slot", "timing_risk",
     ]
     assert SIGNAL_COLUMNS == expected
+
+
+def test_timing_constants_defined():
+    # All current instruments have an asset class
+    for key in ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "US500",
+                "CL", "NG", "NQ", "RTY", "YM", "NKD",
+                "AUDUSD", "AUDJPY", "EURJPY", "EURGBP",
+                "GBPJPY", "USDCAD", "USDCHF", "USDMXN"]:
+        assert key in INSTRUMENT_ASSET_CLASS, f"{key} missing from INSTRUMENT_ASSET_CLASS"
+
+    # Each asset class has at least one slot
+    for asset_class in ["indices", "forex", "commodities"]:
+        assert asset_class in TIMING_SLOTS
+        assert len(TIMING_SLOTS[asset_class]) > 0
+
+    # Each slot is a 4-tuple
+    for asset_class, slots in TIMING_SLOTS.items():
+        for slot in slots:
+            assert len(slot) == 4, f"slot {slot} in {asset_class} should be 4-tuple"
+
+    # New columns are in SIGNAL_COLUMNS
+    assert "timing_slot" in SIGNAL_COLUMNS
+    assert "timing_risk" in SIGNAL_COLUMNS
+    # They come after "reasoning"
+    assert SIGNAL_COLUMNS.index("timing_slot") > SIGNAL_COLUMNS.index("reasoning")
 
 
 def test_session_filter_low_quality():

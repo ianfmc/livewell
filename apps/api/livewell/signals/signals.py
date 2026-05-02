@@ -14,6 +14,7 @@ from livewell.ingestion.s3 import read_parquet, write_parquet
 from livewell.features.constants import FEATURES_PREFIX, PRICES_PREFIX
 from livewell.signals.constants import (
     ATR_FEASIBILITY_MULTIPLIER,
+    INSTRUMENT_ASSET_CLASS,
     MIN_ATR_THRESHOLD,
     PIP_PRECISION,
     RSI_BEARISH_MAX,
@@ -23,6 +24,7 @@ from livewell.signals.constants import (
     SESSION_CONFIG,
     SIGNAL_COLUMNS,
     SIGNALS_PREFIX,
+    TIMING_SLOTS,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,32 @@ def _session_quality(s3_key: str, ts: pd.Timestamp) -> str:
                 return quality
 
     return "low"
+
+
+def _timing_annotation(asset_class: str, ts: pd.Timestamp) -> tuple[str, str]:
+    """
+    Return (timing_slot, timing_risk) for the nearest preceding slot in the asset class.
+    Returns ("unscheduled", "unknown") if the timestamp precedes the day's first slot.
+    """
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+
+    slots = TIMING_SLOTS.get(asset_class, [])
+    signal_minutes = ts.hour * 60 + ts.minute
+
+    best_slot = None
+    best_minutes = -1
+
+    for utc_hour, utc_minute, preferred_action, risk_level in slots:
+        slot_minutes = utc_hour * 60 + utc_minute
+        if slot_minutes <= signal_minutes and slot_minutes > best_minutes:
+            best_minutes = slot_minutes
+            best_slot = (preferred_action, risk_level)
+
+    if best_slot is None:
+        return "unscheduled", "unknown"
+
+    return best_slot
 
 
 def _apply_pipeline(s3_key: str, row: dict) -> dict:

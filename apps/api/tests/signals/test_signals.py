@@ -11,7 +11,7 @@ from livewell.signals.constants import (
     SIGNAL_COLUMNS,
     TIMING_SLOTS,
 )
-from livewell.signals.signals import _apply_pipeline, _session_quality, run_signals
+from livewell.signals.signals import _apply_pipeline, _session_quality, _timing_annotation, run_signals
 from livewell.ingestion.s3 import write_parquet as _write
 
 
@@ -233,12 +233,15 @@ def test_run_signals_output_schema(s3_bucket):
     from livewell.ingestion.s3 import read_parquet
     df = read_parquet(BUCKET, "signals/EURUSD/1d/2026.parquet")
     assert df is not None
-    assert list(df.columns) == [
+    # Check that all expected columns are present (timing_slot and timing_risk will be NaN for now)
+    expected_cols = [
         "date", "ema_20", "ema_50", "rsi_14",
         "macd", "macd_signal", "macd_hist", "atr_14",
         "trend_bias", "session_quality", "strike_candidate",
         "signal_valid", "direction", "reasoning",
+        "timing_slot", "timing_risk",
     ]
+    assert list(df.columns) == expected_cols
 
 
 def test_run_signals_idempotent(s3_bucket):
@@ -385,3 +388,35 @@ def test_pipeline_crude_oil_pip_precision():
     result = _apply_pipeline("CL", row)
     assert result["signal_valid"] is True
     assert result["strike_candidate"] == round(75.05 + 0.50 * 0.5, 2)
+
+
+def test_timing_annotation_nearest_slot():
+    # 14:00 UTC for indices — nearest preceding slot is 13:30 "buy_bullish"
+    ts = pd.Timestamp("2026-01-15 14:00:00", tz="UTC")
+    slot, risk = _timing_annotation("indices", ts)
+    assert slot == "buy_bullish"
+    assert risk == "moderate_high"
+
+
+def test_timing_annotation_exact_slot_time():
+    # Exactly 13:30 UTC for indices — should match the 13:30 slot itself
+    ts = pd.Timestamp("2026-01-15 13:30:00", tz="UTC")
+    slot, risk = _timing_annotation("indices", ts)
+    assert slot == "buy_bullish"
+    assert risk == "moderate_high"
+
+
+def test_timing_annotation_before_first_slot():
+    # 06:00 UTC for indices — before 13:30, the day's first slot
+    ts = pd.Timestamp("2026-01-15 06:00:00", tz="UTC")
+    slot, risk = _timing_annotation("indices", ts)
+    assert slot == "unscheduled"
+    assert risk == "unknown"
+
+
+def test_timing_annotation_forex():
+    # 13:00 UTC for forex — nearest preceding slot is 12:00 "buy_bullish_usdjpy"
+    ts = pd.Timestamp("2026-01-15 13:00:00", tz="UTC")
+    slot, risk = _timing_annotation("forex", ts)
+    assert slot == "buy_bullish_usdjpy"
+    assert risk == "high"

@@ -64,11 +64,11 @@ def _timing_annotation(asset_class: str, ts: pd.Timestamp) -> tuple[str, str]:
     best_slot = None
     best_minutes = -1
 
-    for utc_hour, utc_minute, preferred_action, risk_level in slots:
+    for utc_hour, utc_minute, timing_slot, timing_risk in slots:
         slot_minutes = utc_hour * 60 + utc_minute
         if slot_minutes <= signal_minutes and slot_minutes > best_minutes:
             best_minutes = slot_minutes
-            best_slot = (preferred_action, risk_level)
+            best_slot = (timing_slot, timing_risk)
 
     if best_slot is None:
         return "unscheduled", "unknown"

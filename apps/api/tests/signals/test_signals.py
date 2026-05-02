@@ -420,3 +420,11 @@ def test_timing_annotation_forex():
     slot, risk = _timing_annotation("forex", ts)
     assert slot == "buy_bullish_usdjpy"
     assert risk == "high"
+
+
+def test_timing_annotation_unknown_asset_class():
+    # Unknown asset class should return the unscheduled sentinel
+    ts = pd.Timestamp("2026-01-15 14:00:00", tz="UTC")
+    slot, risk = _timing_annotation("unknown_class", ts)
+    assert slot == "unscheduled"
+    assert risk == "unknown"

@@ -428,3 +428,21 @@ def test_timing_annotation_unknown_asset_class():
     slot, risk = _timing_annotation("unknown_class", ts)
     assert slot == "unscheduled"
     assert risk == "unknown"
+
+
+def test_timing_columns_in_pipeline_output():
+    # A bullish row at 14:00 UTC for US500 (indices)
+    row = {
+        "date":        pd.Timestamp("2026-01-15 14:00:00", tz="UTC"),
+        "ema_20":      5200.0, "ema_50": 5100.0,
+        "rsi_14":      55.0,
+        "macd":        2.0, "macd_signal": 1.5, "macd_hist": 0.5,
+        "atr_14":      10.0,
+        "close":       5190.0,
+    }
+    result = _apply_pipeline("US500", row)
+    assert "timing_slot" in result
+    assert "timing_risk" in result
+    # 14:00 UTC → nearest preceding indices slot is 13:30 "buy_bullish"
+    assert result["timing_slot"] == "buy_bullish"
+    assert result["timing_risk"] == "moderate_high"

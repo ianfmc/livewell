@@ -154,6 +154,10 @@ def _apply_pipeline(s3_key: str, row: dict) -> dict:
     if signal_valid:
         reasons.append("all stages passed")
 
+    # Timing annotation (informational — does not affect signal_valid)
+    asset_class = INSTRUMENT_ASSET_CLASS.get(s3_key, "forex")
+    timing_slot, timing_risk = _timing_annotation(asset_class, ts)
+
     return {
         "trend_bias": trend_bias,
         "session_quality": session_quality,
@@ -161,6 +165,8 @@ def _apply_pipeline(s3_key: str, row: dict) -> dict:
         "signal_valid": signal_valid,
         "direction": direction,
         "reasoning": json.dumps(reasons),
+        "timing_slot": timing_slot,
+        "timing_risk": timing_risk,
     }
 
 

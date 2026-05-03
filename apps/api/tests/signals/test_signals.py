@@ -233,7 +233,7 @@ def test_run_signals_output_schema(s3_bucket):
     from livewell.ingestion.s3 import read_parquet
     df = read_parquet(BUCKET, "signals/EURUSD/1d/2026.parquet")
     assert df is not None
-    # Check that all expected columns are present (timing_slot and timing_risk will be NaN for now)
+    # Check that all expected columns are present
     expected_cols = [
         "date", "ema_20", "ema_50", "rsi_14",
         "macd", "macd_signal", "macd_hist", "atr_14",
@@ -446,3 +446,4 @@ def test_timing_columns_in_pipeline_output():
     # 14:00 UTC → nearest preceding indices slot is 13:30 "buy_bullish"
     assert result["timing_slot"] == "buy_bullish"
     assert result["timing_risk"] == "moderate_high"
+    assert result["signal_valid"] is True

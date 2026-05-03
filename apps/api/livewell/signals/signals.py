@@ -78,8 +78,8 @@ def _timing_annotation(asset_class: str, ts: pd.Timestamp) -> tuple[str, str]:
 
 def _apply_pipeline(s3_key: str, row: dict) -> dict:
     """
-    Apply the 5-stage signal pipeline to a single row dict.
-    Returns a dict of all signal output columns.
+    Apply the 5-stage signal pipeline to a single row dict, then append timing annotation.
+    Returns a dict of all signal output columns including timing_slot and timing_risk.
     """
     ts = row["date"]
     ema_20 = row["ema_20"]

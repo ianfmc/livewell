@@ -1,3 +1,4 @@
+
 # Nadex Intraday Timing Tables (Pacific Time)
 
 ## Indices

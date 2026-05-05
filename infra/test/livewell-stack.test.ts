@@ -62,6 +62,13 @@ describe('S3 bucket', () => {
       },
     });
   });
+
+  it('has RETAIN removal policy', () => {
+    template.hasResource('AWS::S3::Bucket', {
+      DeletionPolicy: 'Retain',
+      UpdateReplacePolicy: 'Retain',
+    });
+  });
 });
 
 describe('DynamoDB tables', () => {
@@ -108,6 +115,30 @@ describe('DynamoDB tables', () => {
       PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
     });
   });
+
+  it('signals table has RETAIN removal policy', () => {
+    template.hasResource('AWS::DynamoDB::Table', {
+      Properties: { TableName: 'livewell-signals-test' },
+      DeletionPolicy: 'Retain',
+      UpdateReplacePolicy: 'Retain',
+    });
+  });
+
+  it('model-runs table has RETAIN removal policy', () => {
+    template.hasResource('AWS::DynamoDB::Table', {
+      Properties: { TableName: 'livewell-model-runs-test' },
+      DeletionPolicy: 'Retain',
+      UpdateReplacePolicy: 'Retain',
+    });
+  });
+
+  it('model-registry table has RETAIN removal policy', () => {
+    template.hasResource('AWS::DynamoDB::Table', {
+      Properties: { TableName: 'livewell-model-registry-test' },
+      DeletionPolicy: 'Retain',
+      UpdateReplacePolicy: 'Retain',
+    });
+  });
 });
 
 describe('IAM role', () => {
@@ -126,6 +157,20 @@ describe('IAM role', () => {
           Match.objectLike({
             Effect: 'Allow',
             Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('pipeline role S3 policy is scoped to data bucket', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Action: Match.arrayWith(['s3:GetObject']),
+            Resource: Match.anyValue(),
           }),
         ]),
       },

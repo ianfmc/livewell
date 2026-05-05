@@ -150,27 +150,14 @@ describe('IAM role', () => {
     });
   });
 
-  it('pipeline role has S3 permissions on data bucket', () => {
+  it('pipeline role has S3 permissions scoped to data bucket', () => {
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
         Statement: Match.arrayWith([
           Match.objectLike({
             Effect: 'Allow',
             Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
-          }),
-        ]),
-      },
-    });
-  });
-
-  it('pipeline role S3 policy is scoped to data bucket', () => {
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Effect: 'Allow',
-            Action: Match.arrayWith(['s3:GetObject']),
-            Resource: Match.anyValue(),
+            Resource: Match.objectLike({ 'Fn::Join': Match.anyValue() }),
           }),
         ]),
       },

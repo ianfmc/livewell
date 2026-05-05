@@ -62,7 +62,10 @@ export class LivewellStack extends cdk.Stack {
     // ── IAM role for pipeline compute ─────────────────────────────────────────
     const pipelineRole = new iam.Role(this, 'PipelineRole', {
       roleName: `livewell-pipeline-${env}`,
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      assumedBy: new iam.CompositePrincipal(
+        new iam.ServicePrincipal('lambda.amazonaws.com'),
+        new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      ),
       description: 'Assumed by LIVEWELL batch pipeline compute (Lambda or Fargate)',
     });
 
@@ -87,7 +90,10 @@ export class LivewellStack extends cdk.Stack {
         'dynamodb:UpdateItem',
         'dynamodb:Query',
       ],
-      resources: tableArns,
+      resources: [
+        ...tableArns,
+        ...tableArns.map(arn => `${arn}/index/*`),
+      ],
     }));
 
     // CloudWatch Logs permissions
@@ -98,7 +104,20 @@ export class LivewellStack extends cdk.Stack {
         'logs:CreateLogStream',
         'logs:PutLogEvents',
       ],
-      resources: ['*'],
+      resources: [
+        cdk.Stack.of(this).formatArn({
+          service: 'logs',
+          resource: 'log-group',
+          resourceName: '/aws/lambda/livewell-*',
+          arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+        }),
+        cdk.Stack.of(this).formatArn({
+          service: 'logs',
+          resource: 'log-group',
+          resourceName: '/ecs/livewell-*',
+          arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+        }),
+      ],
     }));
 
     // ── Outputs ───────────────────────────────────────────────────────────────

@@ -1,0 +1,169 @@
+import * as cdk from 'aws-cdk-lib';
+import { Match, Template } from 'aws-cdk-lib/assertions';
+import { LivewellStack } from '../lib/livewell-stack';
+
+function makeTemplate(env = 'test'): Template {
+  const app = new cdk.App({ context: { env } });
+  const stack = new LivewellStack(app, 'TestStack', {
+    env: { account: '123456789012', region: 'us-west-1' },
+  });
+  return Template.fromStack(stack);
+}
+
+describe('S3 bucket', () => {
+  const template = makeTemplate();
+
+  it('exists with versioning enabled', () => {
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      BucketName: 'livewell-data-test',
+      VersioningConfiguration: { Status: 'Enabled' },
+    });
+  });
+
+  it('blocks all public access', () => {
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      PublicAccessBlockConfiguration: {
+        BlockPublicAcls: true,
+        BlockPublicPolicy: true,
+        IgnorePublicAcls: true,
+        RestrictPublicBuckets: true,
+      },
+    });
+  });
+
+  it('has SSE-S3 encryption', () => {
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      BucketEncryption: {
+        ServerSideEncryptionConfiguration: [
+          {
+            ServerSideEncryptionByDefault: {
+              SSEAlgorithm: 'AES256',
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('has lifecycle rule transitioning to IA after 90 days', () => {
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      LifecycleConfiguration: {
+        Rules: [
+          {
+            Status: 'Enabled',
+            Transitions: [
+              {
+                StorageClass: 'STANDARD_IA',
+                TransitionInDays: 90,
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+});
+
+describe('DynamoDB tables', () => {
+  const template = makeTemplate();
+
+  it('creates livewell-signals-test with correct key schema', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'livewell-signals-test',
+      KeySchema: [{ AttributeName: 'signal_id', KeyType: 'HASH' }],
+      AttributeDefinitions: [{ AttributeName: 'signal_id', AttributeType: 'S' }],
+      BillingMode: 'PAY_PER_REQUEST',
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
+    });
+  });
+
+  it('creates livewell-model-runs-test with partition and sort key', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'livewell-model-runs-test',
+      KeySchema: [
+        { AttributeName: 'run_id', KeyType: 'HASH' },
+        { AttributeName: 'started_at', KeyType: 'RANGE' },
+      ],
+      AttributeDefinitions: [
+        { AttributeName: 'run_id', AttributeType: 'S' },
+        { AttributeName: 'started_at', AttributeType: 'S' },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
+    });
+  });
+
+  it('creates livewell-model-registry-test with partition and sort key', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'livewell-model-registry-test',
+      KeySchema: [
+        { AttributeName: 'model_name', KeyType: 'HASH' },
+        { AttributeName: 'version', KeyType: 'RANGE' },
+      ],
+      AttributeDefinitions: [
+        { AttributeName: 'model_name', AttributeType: 'S' },
+        { AttributeName: 'version', AttributeType: 'S' },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
+    });
+  });
+});
+
+describe('IAM role', () => {
+  const template = makeTemplate();
+
+  it('creates pipeline role with correct name', () => {
+    template.hasResourceProperties('AWS::IAM::Role', {
+      RoleName: 'livewell-pipeline-test',
+    });
+  });
+
+  it('pipeline role has S3 permissions on data bucket', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('pipeline role has DynamoDB permissions', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Action: [
+              'dynamodb:PutItem',
+              'dynamodb:GetItem',
+              'dynamodb:UpdateItem',
+              'dynamodb:Query',
+            ],
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('pipeline role has CloudWatch Logs permissions', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Action: [
+              'logs:CreateLogGroup',
+              'logs:CreateLogStream',
+              'logs:PutLogEvents',
+            ],
+          }),
+        ]),
+      },
+    });
+  });
+});

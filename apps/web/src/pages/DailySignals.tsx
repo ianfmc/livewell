@@ -82,7 +82,7 @@ const DailySignals = () => {
                 size="small"
                 variant="text"
                 onClick={() => {
-                  const id = `${card.instrument.replace(/\//g, '-')}__${card.expiry}`;
+                  const id = card.signalId;
                   setSelectedSignalId(prev => prev === id ? null : id);
                 }}
                 sx={{ mt: 1 }}

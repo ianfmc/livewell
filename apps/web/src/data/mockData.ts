@@ -1,5 +1,6 @@
 export type ContractCard = {
   instrument: string;
+  signalId: string;
   strike: string;
   expiry: string;
   status: string;
@@ -31,18 +32,21 @@ export type ContractDetail = {
 export const mockData: ContractCard[] = [
   {
     instrument: "EUR/USD",
+    signalId: "EURUSD__2026-05-04",
     strike: "1.0850",
     expiry: "10:00 AM",
     status: "Open",
   },
   {
     instrument: "GBP/USD",
+    signalId: "GBPUSD__2026-05-04",
     strike: "1.2650",
     expiry: "11:00 AM",
     status: "Open",
   },
   {
     instrument: "USD/JPY",
+    signalId: "USDJPY__2026-05-04",
     strike: "150.00",
     expiry: "09:30 AM",
     status: "Review",

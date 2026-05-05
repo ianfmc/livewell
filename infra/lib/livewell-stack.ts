@@ -35,7 +35,7 @@ export class LivewellStack extends cdk.Stack {
       tableName: `livewell-signals-${env}`,
       partitionKey: { name: 'signal_id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
@@ -45,7 +45,7 @@ export class LivewellStack extends cdk.Stack {
       partitionKey: { name: 'run_id', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'started_at', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
@@ -55,7 +55,7 @@ export class LivewellStack extends cdk.Stack {
       partitionKey: { name: 'model_name', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'version', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 

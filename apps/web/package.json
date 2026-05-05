@@ -12,6 +12,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@a2ui/react": "file:../../a2ui/renderers/react",
+    "@a2ui/web_core": "file:../../a2ui/renderers/web_core",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.9",

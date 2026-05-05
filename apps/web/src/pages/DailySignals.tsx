@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import FormControl from '@mui/material/FormControl';
@@ -12,10 +13,12 @@ import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 
 import ContractCard from '../components/contract-card';
+import { SignalExplainPanel } from '../components/SignalExplainPanel';
 import { useSignals } from '../hooks/useSignals';
 
 const DailySignals = () => {
   const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const { data, loading, error } = useSignals();
 
   const filteredData = statusFilter === 'All' ? data : data.filter(item => item.status === statusFilter);
@@ -75,9 +78,24 @@ const DailySignals = () => {
                 expiry={card.expiry}
                 status={card.status}
               />
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  const id = card.signalId;
+                  setSelectedSignalId(prev => prev === id ? null : id);
+                }}
+                sx={{ mt: 1 }}
+              >
+                Explain ›
+              </Button>
               </Grid>
             ))}
           </Grid>
+          <SignalExplainPanel
+            signalId={selectedSignalId}
+            onClose={() => setSelectedSignalId(null)}
+          />
         </>
       )}
     </Container>

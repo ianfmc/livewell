@@ -35,6 +35,7 @@ def test_coordinator_creates_run_record():
     mock_lambda = MagicMock()
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run") as mock_create, \
+         patch("livewell.pipeline.handler.update_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
         handler({}, None)
     mock_create.assert_called_once()
@@ -48,6 +49,7 @@ def test_coordinator_invokes_one_worker_per_instrument():
     mock_lambda = MagicMock()
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler.update_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
         handler({}, None)
     assert mock_lambda.invoke.call_count == len(INSTRUMENTS)
@@ -57,6 +59,7 @@ def test_coordinator_passes_s3_key_and_run_id_to_workers():
     mock_lambda = MagicMock()
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run") as mock_create, \
+         patch("livewell.pipeline.handler.update_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
         handler({}, None)
     run_id = mock_create.call_args.args[0]
@@ -72,6 +75,7 @@ def test_coordinator_passes_backfill_flag():
     mock_lambda = MagicMock()
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler.update_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
         handler({"backfill": True}, None)
     payload = json.loads(
@@ -84,10 +88,39 @@ def test_coordinator_returns_running_status():
     mock_lambda = MagicMock()
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler.update_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
         result = handler({}, None)
-    assert result["status"] == "running"
+    assert result["status"] == "dispatched"
     assert "run_id" in result
+
+
+def test_coordinator_continues_and_records_partial_dispatch_failure():
+    from livewell.ingestion.constants import INSTRUMENTS
+
+    call_count = 0
+    def invoke_side_effect(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("throttled")
+        return {"StatusCode": 202}
+
+    mock_lambda = MagicMock()
+    mock_lambda.invoke.side_effect = invoke_side_effect
+    with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler.update_run") as mock_update, \
+         patch("livewell.pipeline.handler._lambda_client", mock_lambda):
+        result = handler({}, None)
+
+    # All instruments attempted despite first failure
+    assert mock_lambda.invoke.call_count == len(INSTRUMENTS)
+    # Status reflects partial failure
+    assert result["status"] == "dispatch_partial"
+    # update_run called with the failed instrument in errors
+    update_call = mock_update.call_args
+    assert len(update_call.kwargs["errors"]) == 1
+    assert update_call.kwargs["status"] == "dispatch_partial"
 
 
 # ── Worker tests ──────────────────────────────────────────────────────────────

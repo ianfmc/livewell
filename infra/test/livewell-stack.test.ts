@@ -199,3 +199,52 @@ describe('IAM role', () => {
     });
   });
 });
+
+describe('Pipeline Lambda', () => {
+  const template = makeTemplate();
+
+  it('exists with correct memory and timeout', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      MemorySize: 512,
+      Timeout: 600,
+    });
+  });
+
+  it('has correct environment variables', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          LIVEWELL_ENV: 'test',
+        }),
+      },
+    });
+  });
+});
+
+describe('EventBridge schedule', () => {
+  const template = makeTemplate();
+
+  it('has cron rule targeting Lambda', () => {
+    template.hasResourceProperties('AWS::Events::Rule', {
+      ScheduleExpression: 'cron(0 0 * * ? *)',
+      State: 'ENABLED',
+    });
+  });
+});
+
+describe('SNS and CloudWatch alarm', () => {
+  const template = makeTemplate();
+
+  it('creates SNS topic', () => {
+    template.resourceCountIs('AWS::SNS::Topic', 1);
+  });
+
+  it('creates CloudWatch alarm on Lambda errors', () => {
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      MetricName: 'Errors',
+      Namespace: 'AWS/Lambda',
+      ComparisonOperator: 'GreaterThanThreshold',
+      Threshold: 0,
+    });
+  });
+});

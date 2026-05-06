@@ -3,6 +3,14 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as path from 'path';
 
 export class LivewellStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -126,5 +134,57 @@ export class LivewellStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ModelRunsTableName', { value: modelRunsTable.tableName });
     new cdk.CfnOutput(this, 'ModelRegistryTableName', { value: modelRegistryTable.tableName });
     new cdk.CfnOutput(this, 'PipelineRoleArn', { value: pipelineRole.roleArn });
+
+    // ── Pipeline Lambda ───────────────────────────────────────────────────────
+    const alertEmail = this.node.tryGetContext('alertEmail') as string | undefined;
+
+    const pipelineLambda = new lambda.DockerImageFunction(this, 'PipelineLambda', {
+      functionName: `livewell-pipeline-fn-${env}`,
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../apps/api'),
+        { file: 'Dockerfile.pipeline' }
+      ),
+      role: pipelineRole,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(600),
+      environment: {
+        LIVEWELL_BUCKET: bucket.bucketName,
+        LIVEWELL_ENV: env,
+      },
+    });
+
+    // ── EventBridge schedule ──────────────────────────────────────────────────
+    new events.Rule(this, 'PipelineSchedule', {
+      ruleName: `livewell-pipeline-schedule-${env}`,
+      schedule: events.Schedule.expression('cron(0 0 * * ? *)'),
+      targets: [new targets.LambdaFunction(pipelineLambda)],
+    });
+
+    // ── SNS alerts ────────────────────────────────────────────────────────────
+    const alertTopic = new sns.Topic(this, 'AlertTopic', {
+      topicName: `livewell-alerts-${env}`,
+    });
+
+    if (alertEmail) {
+      alertTopic.addSubscription(new subscriptions.EmailSubscription(alertEmail));
+    }
+
+    // ── CloudWatch alarm ──────────────────────────────────────────────────────
+    const errorAlarm = new cloudwatch.Alarm(this, 'PipelineErrorAlarm', {
+      alarmName: `livewell-pipeline-errors-${env}`,
+      metric: pipelineLambda.metricErrors({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 0,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
+
+    // ── Additional outputs ────────────────────────────────────────────────────
+    new cdk.CfnOutput(this, 'PipelineLambdaArn', { value: pipelineLambda.functionArn });
+    new cdk.CfnOutput(this, 'AlertTopicArn', { value: alertTopic.topicArn });
   }
 }

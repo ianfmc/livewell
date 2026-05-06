@@ -150,7 +150,6 @@ export class LivewellStack extends cdk.Stack {
       environment: {
         LIVEWELL_BUCKET: bucket.bucketName,
         LIVEWELL_ENV: env,
-        AWS_DEFAULT_REGION: 'us-west-1',
       },
     });
 

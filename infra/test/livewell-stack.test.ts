@@ -215,7 +215,6 @@ describe('Pipeline Lambda', () => {
       Environment: {
         Variables: Match.objectLike({
           LIVEWELL_ENV: 'test',
-          AWS_DEFAULT_REGION: 'us-west-1',
         }),
       },
     });

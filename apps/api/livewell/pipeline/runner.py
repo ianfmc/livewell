@@ -19,8 +19,10 @@ def _read_latest_signal(s3_key: str, bucket: str) -> dict | None:
     """Read all signal Parquets for s3_key (1d interval) and return the most recent row."""
     s3 = boto3.client("s3")
     prefix = f"{SIGNALS_PREFIX}/{s3_key}/1d/"
-    resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-    objects = resp.get("Contents", [])
+    paginator = s3.get_paginator("list_objects_v2")
+    objects = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        objects.extend(page.get("Contents", []))
     if not objects:
         return None
 

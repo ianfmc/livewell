@@ -6,6 +6,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from schemas.contract import ContractCard, ContractDetail, Economics, ReasonCode
+from livewell.ingestion.constants import INSTRUMENTS
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -71,15 +72,7 @@ _DETAILS: list[ContractDetail] = [
 ]
 
 
-_S3_KEY_MAP = {
-    "EURUSD": "EUR/USD", "GBPUSD": "GBP/USD", "USDJPY": "USD/JPY",
-    "AUDUSD": "AUD/USD", "AUDJPY": "AUD/JPY", "EURJPY": "EUR/JPY",
-    "EURGBP": "EUR/GBP", "GBPJPY": "GBP/JPY", "USDCAD": "USD/CAD",
-    "USDCHF": "USD/CHF", "USDMXN": "USD/MXN",
-    "XAUUSD": "Gold", "US500": "US 500", "CL": "Crude Oil",
-    "NG": "Natural Gas", "NQ": "NASDAQ 100", "RTY": "Russell 2000",
-    "YM": "Dow Jones", "NKD": "Nikkei 225",
-}
+_S3_KEY_MAP = {inst["s3_key"]: inst["name"] for inst in INSTRUMENTS}
 
 
 def _s3_key_to_display(s3_key: str) -> str:

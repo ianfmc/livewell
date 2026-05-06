@@ -1,0 +1,14 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+RUN pip install --no-cache-dir \
+    boto3 \
+    pandas \
+    pandas-ta \
+    yfinance \
+    pyarrow \
+    scikit-learn \
+    awslambdaric
+
+COPY . ${LAMBDA_TASK_ROOT}
+
+CMD ["livewell.pipeline.handler.handler"]

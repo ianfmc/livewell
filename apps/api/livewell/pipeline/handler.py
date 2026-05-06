@@ -36,12 +36,15 @@ def _run_coordinator(event: dict) -> dict:
             "run_id": run_id,
             "backfill": backfill,
         })
-        _lambda_client.invoke(
-            FunctionName=function_name,
-            InvocationType="Event",
-            Payload=payload,
-        )
-        logger.info("dispatched worker for %s (run %s)", instrument["s3_key"], run_id)
+        try:
+            _lambda_client.invoke(
+                FunctionName=function_name,
+                InvocationType="Event",
+                Payload=payload,
+            )
+            logger.info("dispatched worker for %s (run %s)", instrument["s3_key"], run_id)
+        except Exception as exc:
+            logger.error("failed to dispatch %s: %s", instrument["s3_key"], exc)
 
     logger.info("coordinator done — run_id=%s, backfill=%s", run_id, backfill)
     return {"run_id": run_id, "status": "running"}
@@ -51,6 +54,7 @@ def _run_worker(event: dict) -> dict:
     s3_key = event["s3_key"]
     run_id = event["run_id"]
     backfill = bool(event.get("backfill", False))
+    logger.info("worker started — %s (run %s)", s3_key, run_id)
 
     record = run_instrument(s3_key, run_id, backfill=backfill)
     put_signal(record)

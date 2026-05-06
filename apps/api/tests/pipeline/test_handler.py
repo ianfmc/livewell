@@ -3,6 +3,8 @@ import json
 from unittest.mock import patch, MagicMock
 import pytest
 
+from livewell.pipeline.handler import handler
+
 
 @pytest.fixture(autouse=True)
 def env(monkeypatch):
@@ -34,11 +36,11 @@ def test_coordinator_creates_run_record():
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run") as mock_create, \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
-        from livewell.pipeline.handler import handler
         handler({}, None)
     mock_create.assert_called_once()
     run_id, started_at = mock_create.call_args.args
     assert isinstance(run_id, str) and len(run_id) == 36  # uuid4
+    assert "T" in started_at and started_at.endswith("+00:00")
 
 
 def test_coordinator_invokes_one_worker_per_instrument():
@@ -47,7 +49,6 @@ def test_coordinator_invokes_one_worker_per_instrument():
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
-        from livewell.pipeline.handler import handler
         handler({}, None)
     assert mock_lambda.invoke.call_count == len(INSTRUMENTS)
 
@@ -57,7 +58,6 @@ def test_coordinator_passes_s3_key_and_run_id_to_workers():
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run") as mock_create, \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
-        from livewell.pipeline.handler import handler
         handler({}, None)
     run_id = mock_create.call_args.args[0]
     first_call_payload = json.loads(
@@ -73,7 +73,6 @@ def test_coordinator_passes_backfill_flag():
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
-        from livewell.pipeline.handler import handler
         handler({"backfill": True}, None)
     payload = json.loads(
         mock_lambda.invoke.call_args_list[0].kwargs["Payload"]
@@ -86,7 +85,6 @@ def test_coordinator_returns_running_status():
     mock_lambda.invoke.return_value = {"StatusCode": 202}
     with patch("livewell.pipeline.handler.create_run"), \
          patch("livewell.pipeline.handler._lambda_client", mock_lambda):
-        from livewell.pipeline.handler import handler
         result = handler({}, None)
     assert result["status"] == "running"
     assert "run_id" in result
@@ -98,24 +96,23 @@ def test_worker_calls_run_instrument_and_puts_signal():
     signal = _make_signal("EURUSD")
     with patch("livewell.pipeline.handler.run_instrument", return_value=signal) as mock_run, \
          patch("livewell.pipeline.handler.put_signal") as mock_put:
-        from livewell.pipeline.handler import handler
         handler({"s3_key": "EURUSD", "run_id": "run-1", "backfill": False}, None)
     mock_run.assert_called_once_with("EURUSD", "run-1", backfill=False)
     mock_put.assert_called_once_with(signal)
 
 
 def test_worker_raises_on_run_instrument_failure():
-    with patch("livewell.pipeline.handler.run_instrument", side_effect=RuntimeError("yfinance down")):
-        from livewell.pipeline.handler import handler
+    with patch("livewell.pipeline.handler.run_instrument", side_effect=RuntimeError("yfinance down")), \
+         patch("livewell.pipeline.handler.put_signal") as mock_put:
         with pytest.raises(RuntimeError, match="yfinance down"):
             handler({"s3_key": "EURUSD", "run_id": "run-1", "backfill": False}, None)
+    mock_put.assert_not_called()
 
 
 def test_worker_returns_signal_id():
     signal = _make_signal("GBPUSD")
     with patch("livewell.pipeline.handler.run_instrument", return_value=signal), \
          patch("livewell.pipeline.handler.put_signal"):
-        from livewell.pipeline.handler import handler
         result = handler({"s3_key": "GBPUSD", "run_id": "run-1", "backfill": False}, None)
     assert result["signal_id"] == signal["signal_id"]
     assert result["s3_key"] == "GBPUSD"

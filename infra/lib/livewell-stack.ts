@@ -80,6 +80,11 @@ export class LivewellStack extends cdk.Stack {
     // S3 permissions
     pipelineRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket'],
+      resources: [bucket.bucketArn],
+    }));
+    pipelineRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
       actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
       resources: [`${bucket.bucketArn}/*`],
     }));

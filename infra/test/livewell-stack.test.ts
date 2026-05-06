@@ -156,6 +156,10 @@ describe('IAM role', () => {
         Statement: Match.arrayWith([
           Match.objectLike({
             Effect: 'Allow',
+            Action: 's3:ListBucket',
+          }),
+          Match.objectLike({
+            Effect: 'Allow',
             Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
             Resource: Match.objectLike({ 'Fn::Join': Match.anyValue() }),
           }),

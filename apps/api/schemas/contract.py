@@ -8,6 +8,7 @@ class ContractCard(BaseModel):
     strike: str
     expiry: str
     status: str
+    signalId: str = ""
 
 
 class Economics(BaseModel):

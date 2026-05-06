@@ -4,6 +4,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as sns from 'aws-cdk-lib/aws-sns';
@@ -140,6 +141,12 @@ export class LivewellStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ModelRegistryTableName', { value: modelRegistryTable.tableName });
     new cdk.CfnOutput(this, 'PipelineRoleArn', { value: pipelineRole.roleArn });
 
+    // ── DLQ ───────────────────────────────────────────────────────────────────────
+    const dlq = new sqs.Queue(this, 'PipelineDLQ', {
+      queueName: `livewell-pipeline-dlq-${env}`,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
     // ── Pipeline Lambda ───────────────────────────────────────────────────────
     const alertEmail = this.node.tryGetContext('alertEmail') as string | undefined;
 
@@ -152,13 +159,21 @@ export class LivewellStack extends cdk.Stack {
       role: pipelineRole,
       architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
-      timeout: cdk.Duration.seconds(600),
+      timeout: cdk.Duration.seconds(300),
+      deadLetterQueue: dlq,
       environment: {
         LIVEWELL_BUCKET: bucket.bucketName,
         LIVEWELL_ENV: env,
         NUMBA_CACHE_DIR: '/tmp',
       },
     });
+
+    // Allow the coordinator to invoke itself as workers
+    pipelineLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['lambda:InvokeFunction'],
+      resources: [pipelineLambda.functionArn],
+    }));
 
     // ── EventBridge schedule ──────────────────────────────────────────────────
     new events.Rule(this, 'PipelineSchedule', {
@@ -189,6 +204,20 @@ export class LivewellStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
+
+    // ── DLQ alarm ─────────────────────────────────────────────────────────────────
+    const dlqAlarm = new cloudwatch.Alarm(this, 'PipelineDLQAlarm', {
+      alarmName: `livewell-pipeline-dlq-${env}`,
+      metric: dlq.metricApproximateNumberOfMessagesVisible({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 0,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    dlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
 
     // ── Additional outputs ────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'PipelineLambdaArn', { value: pipelineLambda.functionArn });

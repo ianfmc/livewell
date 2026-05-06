@@ -26,7 +26,7 @@ def _make_signal(s3_key: str) -> dict:
 
 
 def test_all_succeed_status_is_completed():
-    with patch("livewell.pipeline.handler.run_instrument", side_effect=lambda s, r: _make_signal(s)), \
+    with patch("livewell.pipeline.handler.run_instrument", side_effect=lambda s, r, **kw: _make_signal(s)), \
          patch("livewell.pipeline.handler.create_run"), \
          patch("livewell.pipeline.handler.update_run") as mock_update, \
          patch("livewell.pipeline.handler.put_signal"):
@@ -42,7 +42,7 @@ def test_all_succeed_status_is_completed():
 def test_partial_failure_status_is_completed_with_errors():
     instruments_seen = []
 
-    def side_effect(s3_key, run_id):
+    def side_effect(s3_key, run_id, **kwargs):
         instruments_seen.append(s3_key)
         if s3_key == "EURUSD":
             raise RuntimeError("yfinance down")
@@ -79,7 +79,7 @@ def test_all_fail_status_is_failed():
 def test_put_signal_called_per_success():
     successes = 0
 
-    def side_effect(s3_key, run_id):
+    def side_effect(s3_key, run_id, **kwargs):
         nonlocal successes
         if s3_key in ("EURUSD", "GBPUSD"):
             raise RuntimeError("fail")

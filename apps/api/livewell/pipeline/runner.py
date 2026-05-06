@@ -40,14 +40,14 @@ def _read_latest_signal(s3_key: str, bucket: str) -> dict | None:
     return latest.to_dict()
 
 
-def run_instrument(s3_key: str, run_id: str) -> dict:
+def run_instrument(s3_key: str, run_id: str, backfill: bool = False) -> dict:
     """
     Run ingestion → features → signals for one instrument and return a DynamoDB signal record.
     Raises on any stage failure — caller catches and records the error.
     """
     bucket = os.environ["LIVEWELL_BUCKET"]
 
-    run_ingestion(instruments=[s3_key], backfill=False)
+    run_ingestion(instruments=[s3_key], backfill=backfill)
     run_features(instruments=[s3_key])
     run_signals(instruments=[s3_key])
 

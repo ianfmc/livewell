@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def handler(event: dict, context) -> dict:
+    backfill = bool(event.get("backfill", False))
     run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat()
 
@@ -22,7 +23,7 @@ def handler(event: dict, context) -> dict:
     for instrument in INSTRUMENTS:
         s3_key = instrument["s3_key"]
         try:
-            record = run_instrument(s3_key, run_id)
+            record = run_instrument(s3_key, run_id, backfill=backfill)
             signals.append(record)
         except Exception as exc:
             logger.error("instrument %s failed: %s", s3_key, exc)

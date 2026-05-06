@@ -145,6 +145,7 @@ export class LivewellStack extends cdk.Stack {
         { file: 'Dockerfile.pipeline' }
       ),
       role: pipelineRole,
+      architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
       timeout: cdk.Duration.seconds(600),
       environment: {

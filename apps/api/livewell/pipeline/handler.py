@@ -1,58 +1,58 @@
 from __future__ import annotations
+import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 
+import boto3
+
 from livewell.ingestion.constants import INSTRUMENTS
-from livewell.pipeline.dynamodb import create_run, update_run, put_signal
+from livewell.pipeline.dynamodb import create_run, put_signal
 from livewell.pipeline.runner import run_instrument
 
 logger = logging.getLogger(__name__)
 
+_lambda_client = boto3.client("lambda")
+
 
 def handler(event: dict, context) -> dict:
+    if "s3_key" in event:
+        return _run_worker(event)
+    return _run_coordinator(event)
+
+
+def _run_coordinator(event: dict) -> dict:
     backfill = bool(event.get("backfill", False))
     run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat()
+    function_name = os.environ["AWS_LAMBDA_FUNCTION_NAME"]
 
     create_run(run_id, started_at)
 
-    signals: list[dict] = []
-    errors: list[dict] = []
-
     for instrument in INSTRUMENTS:
-        s3_key = instrument["s3_key"]
-        try:
-            record = run_instrument(s3_key, run_id, backfill=backfill)
-            signals.append(record)
-        except Exception as exc:
-            logger.error("instrument %s failed: %s", s3_key, exc)
-            errors.append({"s3_key": s3_key, "error": str(exc)})
+        payload = json.dumps({
+            "s3_key": instrument["s3_key"],
+            "run_id": run_id,
+            "backfill": backfill,
+        })
+        _lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType="Event",
+            Payload=payload,
+        )
+        logger.info("dispatched worker for %s (run %s)", instrument["s3_key"], run_id)
 
-    n_total = len(INSTRUMENTS)
-    n_err = len(errors)
+    logger.info("coordinator done — run_id=%s, backfill=%s", run_id, backfill)
+    return {"run_id": run_id, "status": "running"}
 
-    if n_err == 0:
-        status = "completed"
-    elif n_err == n_total:
-        status = "failed"
-    else:
-        status = "completed_with_errors"
 
-    completed_at = datetime.now(timezone.utc).isoformat()
-    succeeded_keys = [s["s3_key"] for s in signals]
+def _run_worker(event: dict) -> dict:
+    s3_key = event["s3_key"]
+    run_id = event["run_id"]
+    backfill = bool(event.get("backfill", False))
 
-    update_run(
-        run_id=run_id,
-        started_at=started_at,
-        status=status,
-        instruments=succeeded_keys,
-        errors=errors,
-        completed_at=completed_at,
-    )
-
-    for record in signals:
-        put_signal(record)
-
-    logger.info("run %s %s: %d ok, %d errors", run_id, status, len(signals), n_err)
-    return {"run_id": run_id, "status": status}
+    record = run_instrument(s3_key, run_id, backfill=backfill)
+    put_signal(record)
+    logger.info("worker done — %s (run %s)", s3_key, run_id)
+    return {"signal_id": record["signal_id"], "s3_key": s3_key}

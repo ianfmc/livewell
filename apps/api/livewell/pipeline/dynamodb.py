@@ -22,7 +22,6 @@ def create_run(run_id: str, started_at: str) -> None:
         "status": "running",
         "instruments": [],
         "errors": [],
-        "completed_at": None,
     })
 
 

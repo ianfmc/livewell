@@ -76,6 +76,9 @@ _S3_KEY_MAP = {
     "AUDUSD": "AUD/USD", "AUDJPY": "AUD/JPY", "EURJPY": "EUR/JPY",
     "EURGBP": "EUR/GBP", "GBPJPY": "GBP/JPY", "USDCAD": "USD/CAD",
     "USDCHF": "USD/CHF", "USDMXN": "USD/MXN",
+    "XAUUSD": "Gold", "US500": "US 500", "CL": "Crude Oil",
+    "NG": "Natural Gas", "NQ": "NASDAQ 100", "RTY": "Russell 2000",
+    "YM": "Dow Jones", "NKD": "Nikkei 225",
 }
 
 

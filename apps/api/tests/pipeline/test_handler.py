@@ -1,5 +1,6 @@
 from __future__ import annotations
-from unittest.mock import call, patch, MagicMock
+import json
+from unittest.mock import patch, MagicMock
 import pytest
 
 
@@ -10,6 +11,7 @@ def env(monkeypatch):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "livewell-pipeline-fn-test")
 
 
 def _make_signal(s3_key: str) -> dict:
@@ -25,72 +27,95 @@ def _make_signal(s3_key: str) -> dict:
     }
 
 
-def test_all_succeed_status_is_completed():
-    with patch("livewell.pipeline.handler.run_instrument", side_effect=lambda s, r, **kw: _make_signal(s)), \
-         patch("livewell.pipeline.handler.create_run"), \
-         patch("livewell.pipeline.handler.update_run") as mock_update, \
-         patch("livewell.pipeline.handler.put_signal"):
-        from livewell.pipeline.handler import handler
-        result = handler({}, None)
+# ── Coordinator tests ─────────────────────────────────────────────────────────
 
-    assert result["status"] == "completed"
-    status_call = mock_update.call_args
-    assert status_call.kwargs["status"] == "completed"
-    assert status_call.kwargs["errors"] == []
-
-
-def test_partial_failure_status_is_completed_with_errors():
-    instruments_seen = []
-
-    def side_effect(s3_key, run_id, **kwargs):
-        instruments_seen.append(s3_key)
-        if s3_key == "EURUSD":
-            raise RuntimeError("yfinance down")
-        return _make_signal(s3_key)
-
-    with patch("livewell.pipeline.handler.run_instrument", side_effect=side_effect), \
-         patch("livewell.pipeline.handler.create_run"), \
-         patch("livewell.pipeline.handler.update_run") as mock_update, \
-         patch("livewell.pipeline.handler.put_signal") as mock_put:
-        from livewell.pipeline.handler import handler
-        result = handler({}, None)
-
-    assert result["status"] == "completed_with_errors"
-    status_call = mock_update.call_args
-    assert status_call.kwargs["status"] == "completed_with_errors"
-    assert len(status_call.kwargs["errors"]) == 1
-    assert status_call.kwargs["errors"][0]["s3_key"] == "EURUSD"
-    # put_signal called for every instrument except the failing one
-    assert mock_put.call_count == len(instruments_seen) - 1
-
-
-def test_all_fail_status_is_failed():
-    with patch("livewell.pipeline.handler.run_instrument", side_effect=RuntimeError("network error")), \
-         patch("livewell.pipeline.handler.create_run"), \
-         patch("livewell.pipeline.handler.update_run") as mock_update, \
-         patch("livewell.pipeline.handler.put_signal"):
-        from livewell.pipeline.handler import handler
-        result = handler({}, None)
-
-    assert result["status"] == "failed"
-    assert mock_update.call_args.kwargs["status"] == "failed"
-
-
-def test_put_signal_called_per_success():
-    successes = 0
-
-    def side_effect(s3_key, run_id, **kwargs):
-        nonlocal successes
-        if s3_key in ("EURUSD", "GBPUSD"):
-            raise RuntimeError("fail")
-        successes += 1
-        return _make_signal(s3_key)
-
-    with patch("livewell.pipeline.handler.run_instrument", side_effect=side_effect), \
-         patch("livewell.pipeline.handler.create_run"), \
-         patch("livewell.pipeline.handler.update_run"), \
-         patch("livewell.pipeline.handler.put_signal") as mock_put:
+def test_coordinator_creates_run_record():
+    mock_lambda = MagicMock()
+    mock_lambda.invoke.return_value = {"StatusCode": 202}
+    with patch("livewell.pipeline.handler.create_run") as mock_create, \
+         patch("livewell.pipeline.handler._lambda_client", mock_lambda):
         from livewell.pipeline.handler import handler
         handler({}, None)
+    mock_create.assert_called_once()
+    run_id, started_at = mock_create.call_args.args
+    assert isinstance(run_id, str) and len(run_id) == 36  # uuid4
 
-    assert mock_put.call_count == successes
+
+def test_coordinator_invokes_one_worker_per_instrument():
+    from livewell.ingestion.constants import INSTRUMENTS
+    mock_lambda = MagicMock()
+    mock_lambda.invoke.return_value = {"StatusCode": 202}
+    with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler._lambda_client", mock_lambda):
+        from livewell.pipeline.handler import handler
+        handler({}, None)
+    assert mock_lambda.invoke.call_count == len(INSTRUMENTS)
+
+
+def test_coordinator_passes_s3_key_and_run_id_to_workers():
+    mock_lambda = MagicMock()
+    mock_lambda.invoke.return_value = {"StatusCode": 202}
+    with patch("livewell.pipeline.handler.create_run") as mock_create, \
+         patch("livewell.pipeline.handler._lambda_client", mock_lambda):
+        from livewell.pipeline.handler import handler
+        handler({}, None)
+    run_id = mock_create.call_args.args[0]
+    first_call_payload = json.loads(
+        mock_lambda.invoke.call_args_list[0].kwargs["Payload"]
+    )
+    assert first_call_payload["run_id"] == run_id
+    assert "s3_key" in first_call_payload
+    assert first_call_payload["backfill"] is False
+
+
+def test_coordinator_passes_backfill_flag():
+    mock_lambda = MagicMock()
+    mock_lambda.invoke.return_value = {"StatusCode": 202}
+    with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler._lambda_client", mock_lambda):
+        from livewell.pipeline.handler import handler
+        handler({"backfill": True}, None)
+    payload = json.loads(
+        mock_lambda.invoke.call_args_list[0].kwargs["Payload"]
+    )
+    assert payload["backfill"] is True
+
+
+def test_coordinator_returns_running_status():
+    mock_lambda = MagicMock()
+    mock_lambda.invoke.return_value = {"StatusCode": 202}
+    with patch("livewell.pipeline.handler.create_run"), \
+         patch("livewell.pipeline.handler._lambda_client", mock_lambda):
+        from livewell.pipeline.handler import handler
+        result = handler({}, None)
+    assert result["status"] == "running"
+    assert "run_id" in result
+
+
+# ── Worker tests ──────────────────────────────────────────────────────────────
+
+def test_worker_calls_run_instrument_and_puts_signal():
+    signal = _make_signal("EURUSD")
+    with patch("livewell.pipeline.handler.run_instrument", return_value=signal) as mock_run, \
+         patch("livewell.pipeline.handler.put_signal") as mock_put:
+        from livewell.pipeline.handler import handler
+        handler({"s3_key": "EURUSD", "run_id": "run-1", "backfill": False}, None)
+    mock_run.assert_called_once_with("EURUSD", "run-1", backfill=False)
+    mock_put.assert_called_once_with(signal)
+
+
+def test_worker_raises_on_run_instrument_failure():
+    with patch("livewell.pipeline.handler.run_instrument", side_effect=RuntimeError("yfinance down")):
+        from livewell.pipeline.handler import handler
+        with pytest.raises(RuntimeError, match="yfinance down"):
+            handler({"s3_key": "EURUSD", "run_id": "run-1", "backfill": False}, None)
+
+
+def test_worker_returns_signal_id():
+    signal = _make_signal("GBPUSD")
+    with patch("livewell.pipeline.handler.run_instrument", return_value=signal), \
+         patch("livewell.pipeline.handler.put_signal"):
+        from livewell.pipeline.handler import handler
+        result = handler({"s3_key": "GBPUSD", "run_id": "run-1", "backfill": False}, None)
+    assert result["signal_id"] == signal["signal_id"]
+    assert result["s3_key"] == "GBPUSD"

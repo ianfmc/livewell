@@ -210,7 +210,7 @@ export class LivewellStack extends cdk.Stack {
       alarmName: `livewell-pipeline-dlq-${env}`,
       metric: dlq.metricApproximateNumberOfMessagesVisible({
         period: cdk.Duration.minutes(5),
-        statistic: 'Sum',
+        statistic: 'Maximum',
       }),
       threshold: 0,
       evaluationPeriods: 1,

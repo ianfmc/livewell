@@ -151,6 +151,7 @@ export class LivewellStack extends cdk.Stack {
       environment: {
         LIVEWELL_BUCKET: bucket.bucketName,
         LIVEWELL_ENV: env,
+        NUMBA_CACHE_DIR: '/tmp',
       },
     });
 

@@ -7,7 +7,8 @@ from livewell.signals.dynamodb import get_latest_signals
 from livewell.signals.transform import (
     to_contract_card,
     score_from_record,
-    confidence_from_record,
+    confidence_from_score,
+    map_regime,
     NAME_BY_S3_KEY,
 )
 from livewell.models.registry import get_active_model
@@ -21,11 +22,6 @@ from schemas.dashboard import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _map_regime(trend_bias: str) -> str:
-    mapping = {"bullish": "Bullish", "bearish": "Bearish"}
-    return mapping.get(trend_bias.lower(), "Neutral")
 
 
 @router.get("/dashboard", response_model=DashboardData)
@@ -43,7 +39,7 @@ def get_dashboard() -> DashboardData:
             strike=str(r.get("strike_candidate", "")),
             expiry=str(r.get("timing_slot", "")),
             edge=f"{(score_from_record(r) or 0) * 2 - 1:+.2f}",
-            confidence=confidence_from_record(score_from_record(r)),
+            confidence=confidence_from_score(score_from_record(r)),
         )
         for r in sorted_records[:3]
     ]
@@ -51,7 +47,7 @@ def get_dashboard() -> DashboardData:
     markets = [
         MarketSnapshot(
             instrument=NAME_BY_S3_KEY.get(str(r.get("s3_key", "")), str(r.get("s3_key", ""))),
-            regime=_map_regime(str(r.get("trend_bias", "neutral"))),
+            regime=map_regime(str(r.get("trend_bias", "neutral"))),
             noTrade=(str(r.get("timing_risk", "")).lower() == "high"),
         )
         for r in records

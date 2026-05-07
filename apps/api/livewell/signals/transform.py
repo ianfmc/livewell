@@ -67,6 +67,9 @@ def to_contract_card(record: dict) -> ContractCard:
     )
 
 
+_DEFAULT_ECONOMICS = Economics(cost=40.0, payout=100.0, breakeven=0.40)
+
+
 def to_contract_detail(record: dict) -> ContractDetail:
     s3_key = str(record.get("s3_key", ""))
     score = _score(record)
@@ -82,7 +85,7 @@ def to_contract_detail(record: dict) -> ContractDetail:
         status=_status(rec),
         recommendation=rec,
         rationale=f"{rec} — score {score:.2f}" if score is not None else "No model score available",
-        economics=Economics(cost=40.0, payout=100.0, breakeven=0.40),
+        economics=_DEFAULT_ECONOMICS,
         modelProbability=score,
         edge=edge,
         confidence=conf,
@@ -94,5 +97,9 @@ def to_contract_detail(record: dict) -> ContractDetail:
 
 # Public aliases — internal helpers needed by dashboard aggregation
 score_from_record = _score
-confidence_from_record = _confidence
+confidence_from_score = _confidence
 NAME_BY_S3_KEY = _S3_KEY_TO_NAME
+
+
+def map_regime(trend_bias: str) -> str:
+    return {"bullish": "Bullish", "bearish": "Bearish"}.get(trend_bias.lower(), "Neutral")

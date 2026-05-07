@@ -61,3 +61,13 @@ def test_dashboard_top_candidates_ordered_by_score():
     assert instruments[0] == "EUR/USD"
     assert instruments[1] == "GBP/USD"
     assert instruments[2] == "USD/JPY"
+
+
+def test_dashboard_model_health_degraded_when_no_registry():
+    with patch("routers.dashboard.get_latest_signals", return_value=[]), \
+         patch("routers.dashboard.get_active_model", side_effect=RuntimeError("no active model")):
+        client = TestClient(app)
+        resp = client.get("/api/dashboard")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["modelHealth"]["status"] == "Degraded"

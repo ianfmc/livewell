@@ -219,6 +219,37 @@ export class LivewellStack extends cdk.Stack {
     });
     dlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
 
+    // ── API Lambda (FastAPI + Mangum) ─────────────────────────────────────────
+    const apiLambda = new lambda.DockerImageFunction(this, 'ApiLambda', {
+      functionName: `livewell-api-fn-${env}`,
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../apps/api'),
+        { file: 'Dockerfile.api' }
+      ),
+      architecture: lambda.Architecture.ARM_64,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        LIVEWELL_ENV: env,
+        LIVEWELL_BUCKET: bucket.bucketName,
+        CORS_ORIGINS: (this.node.tryGetContext('corsOrigins') as string | undefined) ?? '*',
+      },
+    });
+
+    signalsTable.grantReadData(apiLambda);
+    modelRegistryTable.grantReadData(apiLambda);
+
+    const apiUrl = apiLambda.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      cors: {
+        allowedOrigins: ['*'],
+        allowedMethods: [lambda.HttpMethod.GET],
+        allowedHeaders: ['*'],
+      },
+    });
+
+    new cdk.CfnOutput(this, 'ApiUrl', { value: apiUrl.url });
+
     // ── Additional outputs ────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'PipelineLambdaArn', { value: pipelineLambda.functionArn });
     new cdk.CfnOutput(this, 'AlertTopicArn', { value: alertTopic.topicArn });

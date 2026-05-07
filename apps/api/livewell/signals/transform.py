@@ -90,3 +90,9 @@ def to_contract_detail(record: dict) -> ContractDetail:
         noTradeFlag=(str(record.get("timing_risk", "")).lower() == "high"),
         reasonCodes=_parse_reason_codes(str(record.get("reasoning", "[]"))),
     )
+
+
+# Public aliases — internal helpers needed by dashboard aggregation
+score_from_record = _score
+confidence_from_record = _confidence
+NAME_BY_S3_KEY = _S3_KEY_TO_NAME

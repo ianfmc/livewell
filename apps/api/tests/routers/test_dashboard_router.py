@@ -57,4 +57,7 @@ def test_dashboard_top_candidates_ordered_by_score():
     assert resp.status_code == 200
     data = resp.json()
     candidates = data["topCandidates"]
-    assert candidates[0]["instrument"] == "EUR/USD"
+    instruments = [c["instrument"] for c in candidates]
+    assert instruments[0] == "EUR/USD"
+    assert instruments[1] == "GBP/USD"
+    assert instruments[2] == "USD/JPY"

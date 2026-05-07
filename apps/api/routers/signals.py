@@ -4,11 +4,16 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from livewell.signals.dynamodb import get_latest_signals, get_signal
-from livewell.signals.transform import to_contract_card, to_contract_detail
+from livewell.signals.transform import to_contract_card, to_contract_detail, _S3_KEY_TO_NAME
 from schemas.contract import ContractCard, ContractDetail
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Invert: display name (with / → -) → s3_key
+_SLUG_TO_S3_KEY: dict[str, str] = {
+    name.replace("/", "-"): key for key, name in _S3_KEY_TO_NAME.items()
+}
 
 
 @router.get("/signals", response_model=list[ContractCard])
@@ -19,8 +24,7 @@ def get_signals() -> list[ContractCard]:
 
 @router.get("/signals/{instrument}/{strike}", response_model=ContractDetail)
 def get_signal_detail(instrument: str, strike: str) -> ContractDetail:
-    # URL uses "-" as separator (e.g. EUR-USD → EURUSD s3_key)
-    s3_key = instrument.replace("-", "").upper()
+    s3_key = _SLUG_TO_S3_KEY.get(instrument) or instrument.replace("-", "").upper()
     records = get_latest_signals()
     if not records:
         raise HTTPException(status_code=404, detail="No signals available")
@@ -29,3 +33,4 @@ def get_signal_detail(instrument: str, strike: str) -> ContractDetail:
     if record is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return to_contract_detail(record)
+

@@ -67,3 +67,36 @@ def test_get_signal_detail_not_found():
         client = TestClient(app)
         resp = client.get("/api/signals/EUR-USD/9.9999")
     assert resp.status_code == 404
+
+
+GOLD_SIGNAL = {
+    "signal_id": "XAUUSD__2026-05-07",
+    "s3_key": "XAUUSD",
+    "date": "2026-05-07",
+    "strike_candidate": "2300.00",
+    "timing_slot": "12:00",
+    "timing_risk": "low",
+    "signal_valid": True,
+    "direction": "buy",
+    "trend_bias": "bullish",
+    "reasoning": "[]",
+    "score": "0.68",
+    "model_version": "20260507T144919",
+}
+
+
+def test_get_signal_detail_gold_slug_resolves_to_xauusd():
+    """URL slug 'Gold' must resolve to s3_key 'XAUUSD', not 'GOLD'."""
+    captured = {}
+
+    def mock_get_signal(s3_key: str, date: str):
+        captured["s3_key"] = s3_key
+        return GOLD_SIGNAL
+
+    with patch("routers.signals.get_latest_signals", return_value=[GOLD_SIGNAL]), \
+         patch("routers.signals.get_signal", side_effect=mock_get_signal):
+        client = TestClient(app)
+        resp = client.get("/api/signals/Gold/2300.00")
+    assert resp.status_code == 200
+    assert captured["s3_key"] == "XAUUSD"
+    assert resp.json()["instrument"] == "Gold"

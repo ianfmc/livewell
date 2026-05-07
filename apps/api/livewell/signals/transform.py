@@ -98,6 +98,7 @@ def to_contract_detail(record: dict) -> ContractDetail:
 # Public aliases — internal helpers needed by dashboard aggregation
 score_from_record = _score
 confidence_from_score = _confidence
+recommendation_from_record = _recommendation
 NAME_BY_S3_KEY = _S3_KEY_TO_NAME
 
 

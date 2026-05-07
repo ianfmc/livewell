@@ -28,7 +28,8 @@ def get_model_health() -> ModelHealth:
             features=[FeatureStatus(name=f, status="Available") for f in _FEATURE_NAMES],
             driftWarnings=[],
         )
-    except RuntimeError:
+    except Exception as exc:
+        logger.warning("model registry unavailable: %s", exc)
         return ModelHealth(
             overallStatus="Degraded",
             trainingDate="unknown",

@@ -47,6 +47,7 @@ def _build_xy(df: pd.DataFrame):
                     "macd_hist", "atr_14"]:
             record[col] = str(record[col])
         try:
+            # s3_key in labeled data is a bare instrument symbol (e.g. "EURUSD"), not an S3 path
             vec = build_feature_vector(record, str(record["s3_key"]))
             X.append(vec)
             y.append(int(record["outcome"]))

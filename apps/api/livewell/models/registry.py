@@ -8,7 +8,8 @@ from boto3.dynamodb.conditions import Key
 
 def _table():
     env = os.environ.get("LIVEWELL_ENV", "prod")
-    dynamodb = boto3.resource("dynamodb")
+    region = os.environ.get("AWS_DEFAULT_REGION", "us-west-1")
+    dynamodb = boto3.resource("dynamodb", region_name=region)
     return dynamodb.Table(f"livewell-model-registry-{env}")
 
 

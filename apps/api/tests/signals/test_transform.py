@@ -32,8 +32,8 @@ class TestRecommendation:
     def test_take_high_score_valid(self):
         assert _recommendation(0.65, True, "buy") == "Take"
 
-    def test_take_exact_boundary(self):
-        assert _recommendation(0.65, True, "buy") == "Take"
+    def test_watch_score_just_below_take(self):
+        assert _recommendation(0.64, True, "buy") == "Watch"
 
     def test_watch_mid_score(self):
         assert _recommendation(0.60, True, "buy") == "Watch"
@@ -49,6 +49,9 @@ class TestRecommendation:
 
     def test_null_score_returns_watch(self):
         assert _recommendation(None, True, "buy") == "Watch"
+
+    def test_null_score_none_direction_returns_watch(self):
+        assert _recommendation(None, True, "none") == "Watch"
 
 
 class TestConfidence:

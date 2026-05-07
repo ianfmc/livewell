@@ -25,12 +25,10 @@ def _score(record: dict) -> float | None:
 def _recommendation(score: float | None, signal_valid: bool, direction: str) -> str:
     if score is None:
         return "Watch"
-    if direction == "none":
-        return "Pass"
-    if score < 0.55:
-        return "Pass"
-    if score >= 0.65 and signal_valid:
+    if score >= 0.65 and signal_valid and direction != "none":
         return "Take"
+    if score < 0.55 or direction == "none":
+        return "Pass"
     return "Watch"
 
 

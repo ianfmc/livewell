@@ -43,15 +43,8 @@ def get_signal(instrument: str, date: str) -> dict | None:
     signal_id = f"{instrument}__{date}"
     try:
         table = _table()
-        resp = table.scan()
-        items: list[dict] = list(resp.get("Items", []))
-        while "LastEvaluatedKey" in resp:
-            resp = table.scan(ExclusiveStartKey=resp["LastEvaluatedKey"])
-            items.extend(resp.get("Items", []))
-        for item in items:
-            if item.get("signal_id") == signal_id:
-                return item
-        return None
+        resp = table.get_item(Key={"signal_id": signal_id})
+        return resp.get("Item")
     except ClientError as exc:
         logger.error("DynamoDB get_item failed: %s", exc)
         return None

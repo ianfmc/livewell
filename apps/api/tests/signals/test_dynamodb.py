@@ -59,7 +59,9 @@ def test_get_latest_signals_empty_table():
 
 
 def test_get_signal_returns_matching_record():
-    with patch("livewell.signals.dynamodb._table", return_value=_mock_table([SIGNAL_A, SIGNAL_B])):
+    table = MagicMock()
+    table.get_item.return_value = {"Item": SIGNAL_A}
+    with patch("livewell.signals.dynamodb._table", return_value=table):
         from livewell.signals.dynamodb import get_signal
         result = get_signal("EURUSD", "2026-05-07")
     assert result is not None
@@ -67,7 +69,9 @@ def test_get_signal_returns_matching_record():
 
 
 def test_get_signal_returns_none_when_not_found():
-    with patch("livewell.signals.dynamodb._table", return_value=_mock_table([SIGNAL_A])):
+    table = MagicMock()
+    table.get_item.return_value = {}  # no "Item" key → not found
+    with patch("livewell.signals.dynamodb._table", return_value=table):
         from livewell.signals.dynamodb import get_signal
         result = get_signal("EURUSD", "2026-01-01")
     assert result is None

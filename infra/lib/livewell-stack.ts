@@ -168,11 +168,19 @@ export class LivewellStack extends cdk.Stack {
       },
     });
 
-    // Allow the coordinator to invoke itself as workers
-    pipelineLambda.addToRolePolicy(new iam.PolicyStatement({
+    // Allow the coordinator to invoke itself as workers.
+    // Use a static ARN to avoid a CloudFormation circular dependency
+    // (PipelineLambda → PipelineRoleDefaultPolicy → PipelineLambda).
+    const pipelineLambdaArn = cdk.Stack.of(this).formatArn({
+      service: 'lambda',
+      resource: 'function',
+      resourceName: `livewell-pipeline-fn-${env}`,
+      arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+    });
+    pipelineRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['lambda:InvokeFunction'],
-      resources: [pipelineLambda.functionArn],
+      resources: [pipelineLambdaArn],
     }));
 
     // ── EventBridge schedule ──────────────────────────────────────────────────

@@ -50,7 +50,7 @@ def _build_xy(df: pd.DataFrame):
             # s3_key in labeled data is a bare instrument symbol (e.g. "EURUSD"), not an S3 path
             vec = build_feature_vector(record, str(record["s3_key"]))
             X.append(vec)
-            y.append(int(record["outcome"]))
+            y.append(int(record["label"]))
         except (KeyError, ValueError, ZeroDivisionError):
             continue
     return np.array(X, dtype=float), np.array(y, dtype=int)

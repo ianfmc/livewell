@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from decimal import Decimal
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -27,7 +28,7 @@ def get_active_model(model_name: str = "rf_tuned") -> dict:
     items = resp.get("Items", [])
     if not items:
         raise RuntimeError(f"no active model found for {model_name}")
-    # If somehow multiple are active, take the most recent by version
+    # versions are YYYYMMDDTHHmmss strings — lexicographic sort is chronological
     return max(items, key=lambda x: x["version"])
 
 
@@ -66,8 +67,8 @@ def register_model(
         "version": version,
         "s3_path": s3_path,
         "features": features,
-        "win_rate": str(win_rate),
-        "ev": str(ev),
+        "win_rate": Decimal(str(win_rate)),
+        "ev": Decimal(str(ev)),
         "trained_at": trained_at,
         "status": "active",
     })

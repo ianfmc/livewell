@@ -128,7 +128,8 @@ def run_training() -> tuple:
     metrics = {"win_rate": win_rate, "brier_score": brier, "ev": ev}
     logger.info("final fold metrics: %s", metrics)
 
-    version = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    now = datetime.now(timezone.utc)
+    version = now.strftime("%Y%m%dT%H%M%S")
     s3_path = _upload_artifact(model, version)
     register_model(
         model_name="rf_tuned",
@@ -137,7 +138,7 @@ def run_training() -> tuple:
         features=FEATURE_NAMES,
         win_rate=win_rate,
         ev=ev,
-        trained_at=datetime.now(timezone.utc).isoformat(),
+        trained_at=now.isoformat(),
     )
     return model, metrics
 

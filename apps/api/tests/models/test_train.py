@@ -71,3 +71,4 @@ def test_train_metrics_are_reasonable(tmp_path):
         _, metrics = run_training()
     assert 0.0 <= metrics["win_rate"] <= 1.0
     assert isinstance(metrics["brier_score"], float)
+    assert isinstance(metrics["ev"], float)

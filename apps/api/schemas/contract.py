@@ -30,7 +30,7 @@ class ContractDetail(BaseModel):
     recommendation: Literal["Take", "Watch", "Pass"]
     rationale: str
     economics: Economics
-    modelProbability: float
+    modelProbability: float | None
     edge: float
     confidence: Literal["High", "Medium", "Low"]
     regime: str

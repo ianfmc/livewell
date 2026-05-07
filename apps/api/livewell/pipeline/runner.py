@@ -11,6 +11,7 @@ from livewell.features.features import run_features
 from livewell.signals.signals import run_signals
 from livewell.signals.constants import SIGNAL_COLUMNS, SIGNALS_PREFIX
 from livewell.ingestion.s3 import read_parquet
+from livewell.models.inference import score_signal
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,8 @@ def _read_latest_signal(s3_key: str, bucket: str) -> dict | None:
 
 def run_instrument(s3_key: str, run_id: str, backfill: bool = False) -> dict:
     """
-    Run ingestion → features → signals for one instrument and return a DynamoDB signal record.
+    Run ingestion → features → signals → inference for one instrument.
+    Returns a DynamoDB signal record with score and model_version set.
     Raises on any stage failure — caller catches and records the error.
     """
     bucket = os.environ["LIVEWELL_BUCKET"]
@@ -56,7 +58,7 @@ def run_instrument(s3_key: str, run_id: str, backfill: bool = False) -> dict:
         raise ValueError(f"no signal row found after pipeline for {s3_key}")
 
     date_str = pd.Timestamp(row["date"]).strftime("%Y-%m-%d")
-    return {
+    record = {
         "signal_id": f"{s3_key}__{date_str}",
         "s3_key": s3_key,
         "run_id": run_id,
@@ -80,3 +82,6 @@ def run_instrument(s3_key: str, run_id: str, backfill: bool = False) -> dict:
         "model_version": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    record = score_signal(record, s3_key)
+    return record

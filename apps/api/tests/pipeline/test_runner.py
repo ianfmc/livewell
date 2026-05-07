@@ -34,13 +34,12 @@ MOCK_SIGNAL_ROW = {
 
 
 def test_run_instrument_returns_signal_record():
-    import pandas as pd
-    mock_df = pd.DataFrame([MOCK_SIGNAL_ROW])
-
     with patch("livewell.pipeline.runner.run_ingestion") as mock_ingest, \
          patch("livewell.pipeline.runner.run_features") as mock_features, \
          patch("livewell.pipeline.runner.run_signals") as mock_signals, \
-         patch("livewell.pipeline.runner._read_latest_signal", return_value=MOCK_SIGNAL_ROW):
+         patch("livewell.pipeline.runner._read_latest_signal", return_value=MOCK_SIGNAL_ROW), \
+         patch("livewell.pipeline.runner.score_signal",
+               side_effect=lambda rec, key: {**rec, "score": 0.734, "model_version": "v1"}) as mock_score:
 
         mock_ingest.return_value = {"succeeded": ["EURUSD"], "failed": []}
         mock_features.return_value = {"succeeded": ["EURUSD"], "failed": []}
@@ -53,9 +52,10 @@ def test_run_instrument_returns_signal_record():
     assert result["s3_key"] == "EURUSD"
     assert result["run_id"] == "run-123"
     assert result["direction"] == "buy"
-    assert result["score"] is None
-    assert result["model_version"] is None
+    assert result["score"] == 0.734
+    assert result["model_version"] == "v1"
     assert "created_at" in result
+    mock_score.assert_called_once()
 
 
 def test_run_instrument_propagates_exception():

@@ -7,7 +7,7 @@ from routers import signals, dashboard, backtest, model_health, tracker, explain
 app = FastAPI(title="LIVEWELL API", version="0.1.0")
 
 _default_origins = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:4173"
-origins = os.environ.get("CORS_ORIGINS", _default_origins).split(",")
+origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", _default_origins).split(",")]
 
 app.add_middleware(
     CORSMiddleware,

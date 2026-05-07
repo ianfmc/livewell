@@ -17,10 +17,12 @@ FEATURE_NAMES = [
 ]
 
 
-def build_feature_vector(record: dict, s3_key: str) -> list[float]:
+def build_feature_vector(record: dict, instrument: str) -> list[float]:
     """Return a 12-element feature vector for a signal record."""
     ema_20 = float(record["ema_20"])
     ema_50 = float(record["ema_50"])
+    if ema_50 == 0.0:
+        raise ValueError("ema_50 is zero — cannot compute ema_ratio")
     return [
         ema_20 / ema_50,
         float(record["rsi_14"]),
@@ -33,5 +35,5 @@ def build_feature_vector(record: dict, s3_key: str) -> list[float]:
         ema_50,
         float(record["macd"]),
         float(record["macd_signal"]),
-        INSTRUMENT_ENC[s3_key],
+        INSTRUMENT_ENC[instrument],
     ]

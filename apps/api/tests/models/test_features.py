@@ -86,3 +86,9 @@ def test_all_values_are_float_or_int():
     vec = build_feature_vector(RECORD, "EURUSD")
     for v in vec:
         assert isinstance(v, (int, float))
+
+
+def test_ema_ratio_zero_denominator_raises():
+    r = {**RECORD, "ema_50": "0"}
+    with pytest.raises(ValueError, match="ema_50 is zero"):
+        build_feature_vector(r, "EURUSD")

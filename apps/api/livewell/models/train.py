@@ -92,6 +92,10 @@ def run_training() -> tuple:
     df = _load_labeled_data()
     logger.info("loaded %d labeled rows", len(df))
 
+    # Drop rows without a label before splitting or building features
+    df = df[df["label"].notna()].reset_index(drop=True)
+    logger.info("labeled rows after dropping NaN: %d", len(df))
+
     X, y = _build_xy(df)
     logger.info("built feature matrix: %s rows, %s features", X.shape[0], X.shape[1])
 

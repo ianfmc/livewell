@@ -60,7 +60,7 @@ def test_score_is_set_on_returned_record(tmp_path, monkeypatch):
          patch("livewell.models.inference._load_model", return_value=mock_model):
         from livewell.models.inference import score_signal
         result = score_signal(dict(RECORD), "EURUSD")
-    assert abs(result["score"] - 0.734) < 1e-6
+    assert abs(float(result["score"]) - 0.734) < 1e-6
     assert result["model_version"] == "20260506T142000"
 
 

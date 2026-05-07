@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import logging
+from decimal import Decimal
 
 import boto3
 import joblib
@@ -46,6 +47,6 @@ def score_signal(record: dict, instrument: str) -> dict:
     features = build_feature_vector(record, instrument)
     prob_itm = float(model.predict_proba([features])[:, 1][0])
 
-    record["score"] = prob_itm
+    record["score"] = Decimal(str(prob_itm))
     record["model_version"] = version
     return record

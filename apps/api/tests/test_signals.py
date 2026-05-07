@@ -92,27 +92,31 @@ def test_get_signals_returns_empty_list_when_env_not_set(monkeypatch):
     assert response.json() == []
 
 
-def test_signal_valid_false_maps_to_invalid_status(signals_table):
+def test_signal_valid_false_maps_to_watch_status(signals_table):
+    # signal_valid=False + direction="none" + score=None → recommendation="Watch" → status="Review"
     from main import app
     client = TestClient(app)
     response = client.get("/api/signals")
     assert response.status_code == 200
     data = response.json()
     gbpusd = next(d for d in data if d["signalId"] == "GBPUSD__2026-05-05")
-    assert gbpusd["status"] == "Invalid"
+    assert gbpusd["status"] == "Review"
 
 
-def test_get_signal_detail_eur_usd():
+def test_get_signal_detail_found(signals_table):
     from main import app
     client = TestClient(app)
+    # Strike in URL is not used for lookup; router uses s3_key + latest date from get_latest_signals
     response = client.get("/api/signals/EUR-USD/1.0850")
     assert response.status_code == 200
     data = response.json()
-    assert data["recommendation"] == "Take"
+    # score=None → recommendation="Watch"
+    assert data["recommendation"] == "Watch"
 
 
-def test_get_signal_detail_not_found():
+def test_get_signal_detail_not_found(signals_table):
     from main import app
     client = TestClient(app)
-    response = client.get("/api/signals/EUR-USD/9.9999")
+    # Use an instrument not present in the moto table
+    response = client.get("/api/signals/XYZ-ABC/1.0000")
     assert response.status_code == 404

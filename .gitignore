@@ -12,6 +12,7 @@ __pycache__/
 .env
 *.env.*
 !*.env.example
+!apps/web/.env.production
 dist/
 build/
 *.parquet

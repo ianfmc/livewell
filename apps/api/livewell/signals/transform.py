@@ -55,7 +55,7 @@ def _parse_reason_codes(reasoning: str) -> list[ReasonCode]:
 def to_contract_card(record: dict) -> ContractCard:
     s3_key = str(record.get("s3_key", ""))
     score = _score(record)
-    signal_valid = bool(record.get("signal_valid", False))
+    signal_valid = record.get("signal_valid") is True
     direction = str(record.get("direction", "none"))
     rec = _recommendation(score, signal_valid, direction)
     return ContractCard(
@@ -70,7 +70,7 @@ def to_contract_card(record: dict) -> ContractCard:
 def to_contract_detail(record: dict) -> ContractDetail:
     s3_key = str(record.get("s3_key", ""))
     score = _score(record)
-    signal_valid = bool(record.get("signal_valid", False))
+    signal_valid = record.get("signal_valid") is True
     direction = str(record.get("direction", "none"))
     rec = _recommendation(score, signal_valid, direction)
     conf = _confidence(score)

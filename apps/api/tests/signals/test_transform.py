@@ -50,8 +50,8 @@ class TestRecommendation:
     def test_null_score_returns_watch(self):
         assert _recommendation(None, True, "buy") == "Watch"
 
-    def test_null_score_none_direction_returns_watch(self):
-        assert _recommendation(None, True, "none") == "Watch"
+    def test_null_score_invalid_signal_returns_watch(self):
+        assert _recommendation(None, False, "buy") == "Watch"
 
 
 class TestConfidence:
@@ -103,6 +103,11 @@ class TestToContractCard:
     def test_unknown_s3_key_passes_through(self):
         card = to_contract_card(_rec(s3_key="UNKNOWN"))
         assert card.instrument == "UNKNOWN"
+
+    def test_signal_valid_string_false_treated_as_false(self):
+        card = to_contract_card(_rec(score="0.71", signal_valid="False", direction="buy"))
+        # "False" string is not True, so signal not valid → Watch → Review
+        assert card.status == "Review"
 
 
 class TestToContractDetail:

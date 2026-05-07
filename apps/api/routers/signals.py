@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from livewell.signals.dynamodb import get_latest_signals, get_signal
-from livewell.signals.transform import to_contract_card, to_contract_detail, _S3_KEY_TO_NAME
+from livewell.signals.transform import to_contract_card, to_contract_detail, NAME_BY_S3_KEY
 from schemas.contract import ContractCard, ContractDetail
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ router = APIRouter()
 
 # Invert: display name (with / → -) → s3_key
 _SLUG_TO_S3_KEY: dict[str, str] = {
-    name.replace("/", "-"): key for key, name in _S3_KEY_TO_NAME.items()
+    name.replace("/", "-").replace(" ", "-"): key for key, name in NAME_BY_S3_KEY.items()
 }
 
 

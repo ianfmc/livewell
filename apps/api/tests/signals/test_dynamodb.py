@@ -8,7 +8,6 @@ import pytest
 @pytest.fixture(autouse=True)
 def env(monkeypatch):
     monkeypatch.setenv("LIVEWELL_ENV", "test")
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
 
@@ -74,4 +73,28 @@ def test_get_signal_returns_none_when_not_found():
     with patch("livewell.signals.dynamodb._table", return_value=table):
         from livewell.signals.dynamodb import get_signal
         result = get_signal("EURUSD", "2026-01-01")
+    assert result is None
+
+
+def test_get_latest_signals_returns_empty_on_client_error():
+    from botocore.exceptions import ClientError
+    table = MagicMock()
+    table.scan.side_effect = ClientError(
+        {"Error": {"Code": "InternalServerError", "Message": "test"}}, "Scan"
+    )
+    with patch("livewell.signals.dynamodb._table", return_value=table):
+        from livewell.signals.dynamodb import get_latest_signals
+        result = get_latest_signals()
+    assert result == []
+
+
+def test_get_signal_returns_none_on_client_error():
+    from botocore.exceptions import ClientError
+    table = MagicMock()
+    table.get_item.side_effect = ClientError(
+        {"Error": {"Code": "InternalServerError", "Message": "test"}}, "GetItem"
+    )
+    with patch("livewell.signals.dynamodb._table", return_value=table):
+        from livewell.signals.dynamodb import get_signal
+        result = get_signal("EURUSD", "2026-05-07")
     assert result is None

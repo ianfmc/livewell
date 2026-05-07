@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 def _table():
     env = os.environ.get("LIVEWELL_ENV", "prod")
-    region = os.environ.get("AWS_DEFAULT_REGION", "us-west-1")
-    return boto3.resource("dynamodb", region_name=region).Table(f"livewell-signals-{env}")
+    return boto3.resource("dynamodb").Table(f"livewell-signals-{env}")
 
 
 def get_latest_signals() -> list[dict]:

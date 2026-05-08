@@ -23,6 +23,7 @@ import HowItWorks from './pages/HowItWorks';
 import SignalTracker from './pages/SignalTracker';
 import OptionsAdvisor from './pages/OptionsAdvisor';
 import { useTheme } from './components/theme-provider';
+import { A2uiProvider } from './a2ui/A2uiProvider';
 
 const NAV_ITEMS = [
   { label: 'Dashboard',        path: '/' },
@@ -97,16 +98,18 @@ const App = () => {
           </Box>
         </Drawer>
 
-        <Routes>
-          <Route path="/"             element={<Dashboard />} />
-          <Route path="/signals"      element={<DailySignals />} />
-          <Route path="/signals/:instrument/:strike" element={<ContractDetail />} />
-          <Route path="/backtest"     element={<BacktestResults />} />
-          <Route path="/model-health" element={<ModelHealth />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/tracker"      element={<SignalTracker />} />
-          <Route path="/advisor"      element={<OptionsAdvisor />} />
-        </Routes>
+        <A2uiProvider>
+          <Routes>
+            <Route path="/"             element={<Dashboard />} />
+            <Route path="/signals"      element={<DailySignals />} />
+            <Route path="/signals/:instrument/:strike" element={<ContractDetail />} />
+            <Route path="/backtest"     element={<BacktestResults />} />
+            <Route path="/model-health" element={<ModelHealth />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/tracker"      element={<SignalTracker />} />
+            <Route path="/advisor"      element={<OptionsAdvisor />} />
+          </Routes>
+        </A2uiProvider>
       </Box>
     </>
   );

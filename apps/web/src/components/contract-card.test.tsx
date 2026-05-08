@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import ContractCard from './contract-card';
 
@@ -27,8 +26,9 @@ describe('ContractCard', () => {
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
-  it('renders a View Details button', async () => {
+  it('card links to the contract detail URL', () => {
     renderCard();
-    expect(screen.getByRole('button', { name: /view details/i })).toBeInTheDocument();
+    const link = screen.getByRole('link');
+    expect(link).toHaveAttribute('href', '/signals/EUR-USD/1.0850');
   });
 });

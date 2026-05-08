@@ -35,10 +35,10 @@ describe('ContractDetail', () => {
     expect(await screen.findByText(/Bullish regime confirmed/)).toBeInTheDocument();
   });
 
-  it('renders back link to Daily Signals', async () => {
+  it('renders back button to Daily Signals', async () => {
     renderDetail();
     await screen.findByText('EUR/USD');
-    expect(screen.getByRole('link', { name: /Daily Signals/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Daily Signals/i })).toBeInTheDocument();
   });
 
   it('shows error alert on fetch failure', async () => {

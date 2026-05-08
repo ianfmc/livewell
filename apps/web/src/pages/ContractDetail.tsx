@@ -1,15 +1,18 @@
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 import { useContractDetail } from '../hooks/useContractDetail';
 
 const ContractDetail = () => {
   const { instrument: encodedInstrument = '', strike = '' } = useParams();
+  const navigate = useNavigate();
   const instrument = encodedInstrument.replace(/-/g, '/');
   const { data, loading, error } = useContractDetail(instrument, strike);
 
@@ -48,12 +51,13 @@ const ContractDetail = () => {
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', mt: 3, px: 2 }}>
-      <RouterLink
-        to="/signals"
-        style={{ display: 'block', marginBottom: '16px', textDecoration: 'none' }}
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate('/signals')}
+        sx={{ mb: 2 }}
       >
-        ← Daily Signals
-      </RouterLink>
+        Daily Signals
+      </Button>
 
       <Stack
         direction="row"
@@ -62,7 +66,7 @@ const ContractDetail = () => {
         sx={{ mb: 1 }}
       >
         <Box>
-          <Typography variant="h4">{data.instrument}</Typography>
+          <Typography variant="h4" sx={{ textAlign: 'left' }}>{data.instrument}</Typography>
           <Typography variant="body2" color="text.secondary">
             Strike {data.strike} · Expires {data.expiry}
           </Typography>

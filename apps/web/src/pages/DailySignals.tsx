@@ -87,7 +87,7 @@ const DailySignals = () => {
                 }}
                 sx={{ mt: 1 }}
               >
-                Explain ›
+                Explain
               </Button>
               </Grid>
             ))}

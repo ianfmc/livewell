@@ -6,15 +6,17 @@ from routers import signals, dashboard, backtest, model_health, tracker, explain
 
 app = FastAPI(title="LIVEWELL API", version="0.1.0")
 
-_default_origins = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:4173"
-origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", _default_origins).split(",")]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_methods=["GET"],
-    allow_headers=["*"],
-)
+# Only add CORSMiddleware for local dev. In Lambda the Function URL handles CORS
+# at the AWS layer — adding middleware too produces duplicate headers that browsers reject.
+if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    _default_origins = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:4173"
+    origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", _default_origins).split(",")]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET"],
+        allow_headers=["*"],
+    )
 
 app.include_router(signals.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { SurfaceModel } from '@a2ui/web_core/v0_9';
 import type { ReactComponentImplementation } from '@a2ui/react/v0_9';
 import { useA2ui } from '../a2ui/useA2ui';
+import { API_BASE } from '../lib/api';
 
 type UseSignalExplainResult = {
   surface: SurfaceModel<ReactComponentImplementation> | null;
@@ -29,7 +30,7 @@ export function useSignalExplain(signalId: string | null): UseSignalExplainResul
     setError(null);
     setSurface(null);
 
-    const es = new EventSource(`/api/explain/${signalId}`);
+    const es = new EventSource(`${API_BASE}/api/explain/${signalId}`);
     esRef.current = es;
 
     es.onmessage = (event: MessageEvent) => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import type { ModelHealth } from '../data/mockModelHealth';
 
 type UseModelHealthResult = {
@@ -14,7 +15,7 @@ export function useModelHealth(): UseModelHealthResult {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/model/health', { signal: controller.signal })
+    fetch(`${API_BASE}/api/model/health`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json() as Promise<ModelHealth>;

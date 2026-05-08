@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import type { TrackedSignal } from '../data/mockSignalTracker';
 
 type UseSignalTrackerResult = {
@@ -14,7 +15,7 @@ export function useSignalTracker(): UseSignalTrackerResult {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/signals/tracker', { signal: controller.signal })
+    fetch(`${API_BASE}/api/signals/tracker`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json() as Promise<TrackedSignal[]>;

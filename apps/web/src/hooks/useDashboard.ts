@@ -1,4 +1,6 @@
+// apps/web/src/hooks/useDashboard.ts
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import type { DashboardData } from '../data/mockDashboard';
 
 type UseDashboardResult = {
@@ -14,7 +16,7 @@ export function useDashboard(): UseDashboardResult {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/dashboard', { signal: controller.signal })
+    fetch(`${API_BASE}/api/dashboard`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json() as Promise<DashboardData>;

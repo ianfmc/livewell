@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import type { ContractDetail } from '../data/mockData';
 
 type UseContractDetailResult = {
@@ -15,7 +16,7 @@ export function useContractDetail(instrument: string, strike: string): UseContra
   useEffect(() => {
     const controller = new AbortController();
     const encodedInstrument = instrument.replace(/\//g, '-');
-    fetch(`/api/signals/${encodedInstrument}/${strike}`, { signal: controller.signal })
+    fetch(`${API_BASE}/api/signals/${encodedInstrument}/${strike}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json() as Promise<ContractDetail>;

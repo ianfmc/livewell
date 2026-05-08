@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import type { BacktestSummary } from '../data/mockBacktest';
 
 type UseBacktestResult = {
@@ -14,7 +15,7 @@ export function useBacktest(): UseBacktestResult {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/backtest/summary', { signal: controller.signal })
+    fetch(`${API_BASE}/api/backtest/summary`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json() as Promise<BacktestSummary>;

@@ -1,4 +1,6 @@
+// apps/web/src/hooks/useSignals.ts
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import type { ContractCard } from '../data/mockData';
 
 type UseSignalsResult = {
@@ -14,21 +16,17 @@ export function useSignals(): UseSignalsResult {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/signals', { signal: controller.signal })
+    fetch(`${API_BASE}/api/signals`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.json() as Promise<ContractCard[]>;
       })
-      .then((json) => {
-        setData(json);
-      })
+      .then((json) => { setData(json); })
       .catch((err: unknown) => {
         if (err instanceof Error && err.name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Unknown error');
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => { setLoading(false); });
     return () => controller.abort();
   }, []);
 

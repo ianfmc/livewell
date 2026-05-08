@@ -131,7 +131,50 @@ def build_explain_messages(
         })
 
 
-def stream_explanation(bucket: str, signal_id: str) -> Iterator[str]:
+def build_explanation(bucket: str, signal_id: str) -> dict:
+    """
+    Full pipeline: parse signal_id, load S3 row, call Claude, return dict.
+
+    Returns keys: header, trend, momentum, session, timing.
+    Raises ValueError if signal_id is malformed.
+    Raises LookupError if signal row not found in S3.
+    """
+    import anthropic
+
+    s3_key, date_str = parse_signal_id(signal_id)
+    row = load_signal_row(bucket, s3_key, date_str)
+    if row is None:
+        raise LookupError(f"Signal not found: {signal_id}")
+
+    surface_id = f"{SURFACE_ID_PREFIX}{signal_id}"
+    user_message = _format_row_for_prompt(row)
+
+    client = anthropic.Anthropic()
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_message}],
+    )
+    full_text = response.content[0].text.strip()
+
+    # Split on double newlines into up to 4 paragraphs
+    raw_paragraphs = [p.strip() for p in full_text.split("\n\n") if p.strip()]
+    paragraphs = raw_paragraphs[:4]
+    # Pad with empty string if Claude returns fewer than 4 sections
+    while len(paragraphs) < 4:
+        paragraphs.append("")
+
+    return {
+        "header": _build_header(row),
+        "trend": paragraphs[0],
+        "momentum": paragraphs[1],
+        "session": paragraphs[2],
+        "timing": paragraphs[3],
+    }
+
+
+
     """
     Full pipeline: parse signal_id, load S3 row, call Claude, yield SSE data lines.
 

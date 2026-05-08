@@ -1,72 +1,58 @@
-import { useEffect, useState, useRef } from 'react';
-import type { SurfaceModel } from '@a2ui/web_core/v0_9';
-import type { ReactComponentImplementation } from '@a2ui/react/v0_9';
-import { useA2ui } from '../a2ui/useA2ui';
+import { useEffect, useState } from 'react';
 import { API_BASE } from '../lib/api';
 
+export type ExplainData = {
+  header: string;
+  trend: string;
+  momentum: string;
+  session: string;
+  timing: string;
+};
+
 type UseSignalExplainResult = {
-  surface: SurfaceModel<ReactComponentImplementation> | null;
+  data: ExplainData | null;
   loading: boolean;
   error: string | null;
 };
 
 export function useSignalExplain(signalId: string | null): UseSignalExplainResult {
-  const processor = useA2ui();
-  const [surface, setSurface] = useState<SurfaceModel<ReactComponentImplementation> | null>(null);
-  const [loading, setLoading] = useState(signalId !== null);
+  const [data, setData] = useState<ExplainData | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     if (!signalId) {
-      setLoading(false);
-      setSurface(null);
+      setData(null);
       setError(null);
+      setLoading(false);
       return;
     }
 
-    const surfaceId = `explain-${signalId}`;
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    setSurface(null);
+    setData(null);
 
-    const es = new EventSource(`${API_BASE}/api/explain/${signalId}`);
-    esRef.current = es;
-
-    es.onmessage = (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data as string);
-        processor.processMessages([msg]);
-
-        if ('createSurface' in msg) {
-          const s = processor.model.getSurface(surfaceId);
-          if (s) setSurface(s);
+    fetch(`${API_BASE}/api/explain/${signalId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json() as Promise<ExplainData>;
+      })
+      .then((json) => {
+        if (!cancelled) {
+          setData(json);
           setLoading(false);
         }
-      } catch {
-        setError('Failed to parse SSE message');
-        setLoading(false);
-      }
-    };
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load explanation');
+          setLoading(false);
+        }
+      });
 
-    es.onerror = () => {
-      setError('Connection error');
-      setLoading(false);
-      es.close();
-    };
+    return () => { cancelled = true; };
+  }, [signalId]);
 
-    return () => {
-      es.close();
-      esRef.current = null;
-      // Clean up surface in processor
-      try {
-        processor.processMessages([{ version: 'v0.9', deleteSurface: { surfaceId } }]);
-      } catch {
-        // Surface may not exist if stream didn't start
-      }
-      setSurface(null);
-    };
-  }, [signalId, processor]);
-
-  return { surface, loading, error };
+  return { data, loading, error };
 }

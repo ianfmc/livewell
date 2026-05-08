@@ -1,10 +1,11 @@
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { A2uiSurface } from '@a2ui/react/v0_9';
+import CloseIcon from '@mui/icons-material/Close';
 import { useSignalExplain } from '../hooks/useSignalExplain';
 
 type Props = {
@@ -12,8 +13,15 @@ type Props = {
   onClose: () => void;
 };
 
+const SECTIONS = [
+  { key: 'trend',    label: 'Trend' },
+  { key: 'momentum', label: 'Momentum' },
+  { key: 'session',  label: 'Session' },
+  { key: 'timing',   label: 'Timing' },
+] as const;
+
 export function SignalExplainPanel({ signalId, onClose }: Props) {
-  const { surface, loading, error } = useSignalExplain(signalId);
+  const { data, loading, error } = useSignalExplain(signalId);
 
   if (!signalId) return null;
 
@@ -51,16 +59,23 @@ export function SignalExplainPanel({ signalId, onClose }: Props) {
         </Alert>
       )}
 
-      {!loading && !error && surface && (
-        <Box sx={{ pr: 4 }}>
-          <A2uiSurface surface={surface} />
-        </Box>
-      )}
-
-      {!loading && !error && !surface && (
-        <Typography variant="body2" color="text.secondary">
-          Generating explanation…
-        </Typography>
+      {!loading && !error && data && (
+        <Stack spacing={1.5} sx={{ pr: 4 }}>
+          <Typography variant="caption" color="text.secondary" fontWeight="bold">
+            {data.header}
+          </Typography>
+          <Divider />
+          {SECTIONS.map(({ key, label }) =>
+            data[key] ? (
+              <Box key={key}>
+                <Typography variant="overline" color="text.secondary" lineHeight={1.2}>
+                  {label}
+                </Typography>
+                <Typography variant="body2">{data[key]}</Typography>
+              </Box>
+            ) : null
+          )}
+        </Stack>
       )}
     </Box>
   );

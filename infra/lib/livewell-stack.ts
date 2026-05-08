@@ -11,6 +11,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as path from 'path';
 
 export class LivewellStack extends cdk.Stack {
@@ -228,6 +229,10 @@ export class LivewellStack extends cdk.Stack {
     dlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
 
     // ── API Lambda (FastAPI + Mangum) ─────────────────────────────────────────
+    const anthropicApiKey = ssm.StringParameter.valueForStringParameter(
+      this, '/livewell/anthropic_api_key'
+    );
+
     const apiLambda = new lambda.DockerImageFunction(this, 'ApiLambda', {
       functionName: `livewell-api-fn-${env}`,
       code: lambda.DockerImageCode.fromImageAsset(
@@ -236,11 +241,12 @@ export class LivewellStack extends cdk.Stack {
       ),
       architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.seconds(60),
       environment: {
         LIVEWELL_ENV: env,
         LIVEWELL_BUCKET: bucket.bucketName,
         CORS_ORIGINS: (this.node.tryGetContext('corsOrigins') as string | undefined) ?? '*',
+        ANTHROPIC_API_KEY: anthropicApiKey,
       },
     });
 

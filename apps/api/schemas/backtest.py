@@ -5,7 +5,7 @@ from pydantic import BaseModel
 class BacktestRow(BaseModel):
     market: str
     regime: str
-    expiryWindow: str
+    expiryWindow: str = "Daily"
     trades: int
     winRate: float
     avgEdge: float
@@ -17,6 +17,16 @@ class EquityCurvePoint(BaseModel):
     value: float
 
 
+class SignalValidGroup(BaseModel):
+    trades: int
+    winRate: float
+
+
+class SignalValidSplit(BaseModel):
+    valid: SignalValidGroup
+    invalid: SignalValidGroup
+
+
 class BacktestSummary(BaseModel):
     totalTrades: int
     winRate: float
@@ -24,3 +34,4 @@ class BacktestSummary(BaseModel):
     maxDrawdown: float
     equityCurve: list[EquityCurvePoint]
     rows: list[BacktestRow]
+    signalValidSplit: SignalValidSplit | None = None

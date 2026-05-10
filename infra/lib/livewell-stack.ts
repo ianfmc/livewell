@@ -186,7 +186,7 @@ export class LivewellStack extends cdk.Stack {
     // ── EventBridge schedule ──────────────────────────────────────────────────
     new events.Rule(this, 'PipelineSchedule', {
       ruleName: `livewell-pipeline-schedule-${env}`,
-      schedule: events.Schedule.expression('cron(0 0 * * ? *)'),
+      schedule: events.Schedule.expression('cron(0 0 ? * MON-FRI *)'),
       targets: [new targets.LambdaFunction(pipelineLambda)],
     });
 

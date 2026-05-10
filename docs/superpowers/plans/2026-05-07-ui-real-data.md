@@ -1344,3 +1344,15 @@ echo "VITE_USE_MOCKS=true" > apps/web/.env.local
 ```bash
 git add -A && git commit -m "feat: complete UI real data wiring — all pages on live DynamoDB via Lambda Function URL"
 ```
+
+---
+
+## Holdovers — identified during walkthrough (2026-05-09)
+
+These were found during the post-deployment UI walkthrough and deferred to the next phase.
+
+- [ ] **Explain: show error message when signal not found** — Tapping Explain on a signal with no S3 data (pipeline hasn't run for that date) silently fails. The endpoint returns 404 with `"Signal not found"` but the UI shows nothing. `SignalExplainPanel` should surface this as a visible error message.
+
+- [ ] **Options Advisor: expand markets list** — `MARKETS` in `OptionsAdvisor.tsx` is hardcoded to 5 instruments (`['EUR/USD', 'GBP/USD', 'USD/JPY', 'Gold', 'US 500']`). Should pull from the live `/api/signals` response so all active instruments appear.
+
+- [ ] **Options Advisor: step 3 radio buttons not spreading horizontally** — The three `RadioGroup` groups on step 3 (Trend Direction, Volatility, Event Risk) have the `row` prop but render left-justified instead of spread. Likely a container width or MUI layout issue — investigate and fix.

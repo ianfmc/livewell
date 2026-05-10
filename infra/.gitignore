@@ -1,6 +1,7 @@
 node_modules/
 cdk.out/
 dist/
+json/
 *.js
 *.d.ts
 !jest.config.js

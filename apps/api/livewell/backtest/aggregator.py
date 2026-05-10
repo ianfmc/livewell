@@ -27,11 +27,9 @@ def build_summary(trades: list[dict]) -> dict:
     total = len(sorted_trades)
     win_rate = wins / total
 
-    # Equity curve — N+1 points: sentinel "start" point at initial equity,
-    # then one post-trade point per trade.  Using "start" avoids duplicating
-    # the first trade's date as both the pre-trade and post-trade label.
+    # Equity curve — N points, one post-trade point per trade.
     equity = _STARTING_EQUITY
-    curve = [{"date": "start", "value": equity}]
+    curve = []
     for trade in sorted_trades:
         equity += (_PAYOUT - _COST) if trade["win"] else -_COST
         curve.append({"date": trade["date"], "value": round(equity, 2)})

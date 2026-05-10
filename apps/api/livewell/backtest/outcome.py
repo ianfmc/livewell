@@ -34,6 +34,9 @@ def resolve_trade(signal_row: dict, price_df: pd.DataFrame) -> dict | None:
         return None
     try:
         signal_date = pd.Timestamp(str(raw_date))
+        # If price_df has tz-aware dates, make signal_date tz-aware too
+        if not price_df.empty and price_df["date"].dt.tz is not None and signal_date.tz is None:
+            signal_date = signal_date.tz_localize("UTC")
     except (ValueError, TypeError):
         logger.warning("Signal %s has invalid date %r — skipping", signal_row.get("signal_id"), raw_date)
         return None

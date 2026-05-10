@@ -30,6 +30,9 @@ class TestIsWin:
     def test_put_exact_strike(self):
         assert is_win("put", 1.0850, 1.0850) is False
 
+    def test_unknown_direction_returns_false(self):
+        assert is_win("none", 1.0, 1.1) is False
+
 
 class TestResolveTrade:
     def test_returns_trade_result_when_next_day_exists(self):
@@ -92,6 +95,32 @@ class TestResolveTrade:
             "s3_key": "EURUSD",
             "direction": "call",
             "strike_candidate": "1.0850",
+            "signal_valid": True,
+            "trend_bias": "bullish",
+        }
+        result = resolve_trade(signal, df)
+        assert result is None
+
+    def test_returns_none_when_date_missing(self):
+        df = _price_df([("2026-05-07", 1.0900), ("2026-05-08", 1.0950)])
+        signal = {
+            "signal_id": "EURUSD__no-date",
+            "s3_key": "EURUSD",
+            "direction": "call",
+            "strike_candidate": "1.0850",
+            "signal_valid": True,
+            "trend_bias": "bullish",
+        }
+        result = resolve_trade(signal, df)
+        assert result is None
+
+    def test_returns_none_when_strike_missing(self):
+        df = _price_df([("2026-05-07", 1.0900), ("2026-05-08", 1.0950)])
+        signal = {
+            "signal_id": "EURUSD__no-strike",
+            "date": "2026-05-07",
+            "s3_key": "EURUSD",
+            "direction": "call",
             "signal_valid": True,
             "trend_bias": "bullish",
         }

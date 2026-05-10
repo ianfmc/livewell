@@ -27,15 +27,14 @@ def build_summary(trades: list[dict]) -> dict:
     total = len(sorted_trades)
     win_rate = wins / total
 
-    # Equity curve — one point per trade showing equity *before* that trade,
-    # plus a trailing point showing final equity after the last trade.
-    # This gives n+1 points for n trades, with dates aligned to trade dates.
+    # Equity curve — N+1 points: sentinel "start" point at initial equity,
+    # then one post-trade point per trade.  Using "start" avoids duplicating
+    # the first trade's date as both the pre-trade and post-trade label.
     equity = _STARTING_EQUITY
-    curve = []
+    curve = [{"date": "start", "value": equity}]
     for trade in sorted_trades:
-        curve.append({"date": trade["date"], "value": round(equity, 2)})
         equity += (_PAYOUT - _COST) if trade["win"] else -_COST
-    curve.append({"date": sorted_trades[-1]["date"], "value": round(equity, 2)})
+        curve.append({"date": trade["date"], "value": round(equity, 2)})
 
     # Max drawdown
     peak = _STARTING_EQUITY
@@ -65,6 +64,8 @@ def build_summary(trades: list[dict]) -> dict:
             sum((_PAYOUT - _COST) if t["win"] else -_COST for t in group) / (_COST * g_total),
             4,
         )
+        # NOTE: for binary outcomes netReturn == avgEdge algebraically; kept because
+        # BacktestRow schema (schemas/backtest.py) declares it as a required field.
         rows.append({
             "market": market,
             "regime": regime,

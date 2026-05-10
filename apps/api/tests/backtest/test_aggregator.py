@@ -52,8 +52,17 @@ class TestEquityCurve:
     def test_dates_match_trade_dates(self):
         summary = build_summary([WIN_TRADE, LOSS_TRADE])
         dates = [p["date"] for p in summary["equityCurve"]]
-        assert dates[0] == "2026-05-07"
-        assert dates[1] == "2026-05-08"
+        assert len(dates) == 3
+        assert dates[0] == "start"
+        assert dates[1] == "2026-05-07"
+        assert dates[2] == "2026-05-08"
+
+    def test_trades_sorted_by_date_regardless_of_input_order(self):
+        # LOSS_TRADE (2026-05-08) passed before WIN_TRADE (2026-05-07) — should sort correctly
+        summary = build_summary([LOSS_TRADE, WIN_TRADE])
+        values = [p["value"] for p in summary["equityCurve"]]
+        # Sorted by date: WIN (05-07) first, LOSS (05-08) second
+        assert values == pytest.approx([1000.0, 1060.0, 1020.0])
 
 
 class TestMaxDrawdown:

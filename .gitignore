@@ -46,3 +46,4 @@ htmlcov/
 
 # Superpowers brainstorm sessions
 .superpowers/
+.ipynb_checkpoints/

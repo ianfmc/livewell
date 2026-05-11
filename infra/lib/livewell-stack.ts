@@ -251,6 +251,7 @@ export class LivewellStack extends cdk.Stack {
 
     signalsTable.grantReadData(apiLambda);
     modelRegistryTable.grantReadData(apiLambda);
+    bucket.grantRead(apiLambda);
 
     const apiUrl = apiLambda.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,

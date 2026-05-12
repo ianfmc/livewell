@@ -45,6 +45,18 @@ def _read_parquet(s3, bucket: str, key: str) -> pd.DataFrame | None:
         raise
 
 
+def _str_or_none(v) -> str | None:
+    if v is None:
+        return None
+    try:
+        import math
+        if math.isnan(float(v)):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return str(v)
+
+
 def replay_signals(
     instruments: list[str] | None = None,
     env: str = "prod",
@@ -99,16 +111,16 @@ def replay_signals(
                     "s3_key": s3_key,
                     "run_id": "replay",
                     "date": date_str,
-                    "ema_20": str(row.get("ema_20", "")),
-                    "ema_50": str(row.get("ema_50", "")),
-                    "rsi_14": str(row.get("rsi_14", "")),
-                    "macd": str(row.get("macd", "")),
-                    "macd_signal": str(row.get("macd_signal", "")),
-                    "macd_hist": str(row.get("macd_hist", "")),
-                    "atr_14": str(row.get("atr_14", "")),
+                    "ema_20": _str_or_none(row.get("ema_20")),
+                    "ema_50": _str_or_none(row.get("ema_50")),
+                    "rsi_14": _str_or_none(row.get("rsi_14")),
+                    "macd": _str_or_none(row.get("macd")),
+                    "macd_signal": _str_or_none(row.get("macd_signal")),
+                    "macd_hist": _str_or_none(row.get("macd_hist")),
+                    "atr_14": _str_or_none(row.get("atr_14")),
                     "trend_bias": str(row.get("trend_bias", "")),
                     "session_quality": str(row.get("session_quality", "")),
-                    "strike_candidate": str(row.get("strike_candidate", "")),
+                    "strike_candidate": _str_or_none(row.get("strike_candidate")),
                     "signal_valid": bool(row.get("signal_valid", False)),
                     "direction": direction,
                     "reasoning": str(row.get("reasoning", "{}")),

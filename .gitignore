@@ -41,6 +41,9 @@ htmlcov/
 # git worktrees
 .worktrees/
 
+# External reference repos cloned locally
+a2ui/
+
 # Playwright MCP snapshots
 .playwright-mcp/
 

@@ -96,7 +96,8 @@ def test_walk_forward_produces_multiple_folds():
          patch("livewell.models.train_lr._upload_lr_artifact", return_value="models/lr_baseline/vTEST.joblib"), \
          patch("livewell.models.train_lr.register_model"):
         from livewell.models.train_lr import run_lr_training
-        run_lr_training()
+        _, metrics, _ = run_lr_training()
     from livewell.models.train import _walk_forward_split
     folds = list(_walk_forward_split(df))
     assert len(folds) >= 6
+    assert {"win_rate", "brier_score", "ev"}.issubset(metrics.keys())

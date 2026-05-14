@@ -65,9 +65,10 @@ def run_lr_training() -> tuple:
         n = len(X)
         split = max(1, int(n * 0.8))
         test_idx = list(range(split, n))
+        X_train_fb, y_train_fb = X[:split], y[:split]
         X_test, y_test = X[test_idx], y[test_idx]
         tmp = LogisticRegression(C=1.0, class_weight="balanced", max_iter=1000, solver="lbfgs", random_state=42)
-        tmp.fit(X, y)
+        tmp.fit(X_train_fb, y_train_fb)
         proba = tmp.predict_proba(X_test)[:, 1]
         preds = (proba >= 0.5).astype(int)
         win_rate = float(np.mean(preds == y_test)) if len(y_test) > 0 else 0.0

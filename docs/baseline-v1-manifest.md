@@ -5,8 +5,12 @@ baseline (ingestion, scoring, decision-support path) *before* evaluating the
 congressional signal, so the LW-206 ablation ("with vs without") compares
 against a fixed, reproducible reference.
 
-**Status:** DRAFT — values below are captured; the freeze commands in
-"How to create this freeze" have not yet been run.
+**Status:** FROZEN 2026-09-26 — all freeze steps executed and verified. Code
+tag `baseline-v1` (`e5ec61e`) pushed to origin; inputs, model, and results
+snapshotted to `s3://livewell-data-prod/frozen/baseline-v1/` (563 objects,
+~65 MB): prices/ (187), features/ (187), signals/ (187),
+model/v20260507T144919.joblib, results/signals-export.json. Verified read-only
+2026-09-26.
 
 ---
 
@@ -98,8 +102,8 @@ rm /tmp/signals-export.json
 > authoritative. The scan is fine for a personal baseline.
 
 ### Step 5 — Mark this manifest frozen
-Change **Status: DRAFT** at the top to `FROZEN 2026-09-06` once Steps 1–4 succeed,
-and commit this file so gate LW-G01 has its artifact.
+DONE (2026-09-26): Status flipped to `FROZEN` at the top and this file committed,
+so gate LW-G01 has its artifact.
 
 ---
 

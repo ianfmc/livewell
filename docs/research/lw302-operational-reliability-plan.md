@@ -1,0 +1,207 @@
+# LW-302 — Operational-reliability exercise (approach for /plan-eng-review)
+
+Status: DRAFT approach doc for engineering review. Not evidence of completion.
+Prepared: 2026-10-02. Governance snapshot: sourceRevision 169
+(retrievedAt 2026-10-02T22:08:03Z). Owner: Ian.
+
+## Why this doc exists
+
+The LIVEWELL NBA (`nbas/LIVEWELL.md`, canonical rev 169) puts the current next
+action at **operational reliability under LW-302**: *exercise the existing core
+path, including a bounded failure/recovery scenario, and record deploy/operate
+evidence before proposing LW-302 completion.* The scoring-replay sub-claim is
+already recorded as complete (1,831/1,831 exact) and must not be repeated;
+reproducibility is **not** operational reliability.
+
+This is a bounded verification, not new discovery. It reuses existing docs
+(`docs/04_pipeline_architecture.md`, `docs/research/lw302-replay-verification-plan.md`)
+and the mapped pipeline code. Per the NBA, do not restart discovery.
+
+## Decided scope (confirmed with Ian)
+
+- **Option A — local end-to-end, NO deploy.** There is no deployed UI: the web
+  app has no Amplify app, no `.env` hosted URL, no CloudFront/execute-api
+  reference; it is wired for local dev only (`localhost:5173`, `/api` proxy to
+  `localhost:8000`, MSW mocks). Confirmed by inspection and by Ian ("this is
+  not yet an Amplify application … only a local UI"). Deploying is a one-way,
+  Ian-gated action and is explicitly **out of scope** for this exercise.
+- **UI against the REAL local API, not MSW.** A mocked UI would only prove
+  fixtures render. The UI (`npm run dev`) must talk to the real local FastAPI
+  backend (`uv run uvicorn main:app`). The Vite dev server already proxies
+  `/api` → `http://localhost:8000`, so pointing at the real API means ensuring
+  MSW does not intercept (`src/main.tsx` starts MSW under `import.meta.env.DEV`
+  with `onUnhandledRequest: "bypass"` — the real-API path needs MSW disabled or
+  bypassed for `/api/*`). **Open design point D-UI below.**
+- **Frozen `baseline-v1` data for the core run.** Deterministic, offline, no
+  live yfinance, no live writes. Ties the exercise to the already-verified
+  baseline.
+
+## The wrinkle this review must resolve (not papered over)
+
+The core path is not trivially "frozen-friendly," and the UI reads from a
+different store than the frozen artifacts live in:
+
+1. **`run_instrument()` is hardwired to full ingestion.**
+   `apps/api/livewell/pipeline/runner.py` runs
+   `run_ingestion()` (yfinance) → `run_features()` → `run_signals()` →
+   read-back from `LIVEWELL_BUCKET` → `score_signal()`. There is no built-in
+   "skip ingestion / read frozen inputs" switch. Running it as-is would hit
+   yfinance and the live bucket. The replay verification already had to work
+   around this.
+2. **UI read path uses DynamoDB, frozen data is S3.** The product endpoints the
+   UI calls (`/api/signals`, `/api/dashboard`, …) read via
+   `livewell/signals/dynamodb.py::_table()` →
+   `livewell-signals-{LIVEWELL_ENV}` (default `prod`). The frozen baseline is
+   S3 Parquet + `results/signals-export.json`. So serving frozen data to the UI
+   requires a defined bridge, not a hand-wave.
+
+## Proposed core-path definition + frozen-data bridge
+
+Exercise the path in two grounded segments, both local and reversible:
+
+**Segment 1 — compute path (backend), frozen inputs.**
+Seed a scratch S3 location (or local dir) from `frozen/baseline-v1/`, point
+`LIVEWELL_BUCKET` at it, and run the **features → signals → score → read-back**
+portion only — i.e. the deterministic part of `run_instrument` **without**
+`run_ingestion()`. Record that it reproduces frozen signals (reuse the replay
+machinery; do not re-litigate the 1,831-row claim — just confirm the path runs
+and reads back).
+
+**Segment 2 — serve path (API + UI), frozen-seeded store.**
+Seed a **scratch DynamoDB** table `livewell-signals-<scratch-env>` from
+`frozen/baseline-v1/results/signals-export.json`, set `LIVEWELL_ENV=<scratch>`,
+start the real FastAPI (`uvicorn main:app`), start the UI (`npm run dev`) with
+MSW bypassed for `/api/*`, and confirm the core screens (Dashboard,
+DailySignals, ContractDetail, SignalTracker) render real backend data. Capture
+sanitized screenshots. No live `livewell-signals-prod` touched; scratch table
+deleted after.
+
+## Bounded failure / recovery scenario (exactly one)
+
+Candidates (review to pick ONE):
+- **F1 — missing input mid-path:** remove/corrupt one instrument's seeded input
+  before Segment 1; show the path surfaces the failure (`run_instrument` raises;
+  `handler._run_worker`/coordinator records the error — see
+  `pipeline/handler.py` error accounting: `dispatch_failed`/`dispatch_partial`),
+  then restore the input and show successful recompletion.
+- **F2 — backend down for the UI:** stop the local API mid-session; show the UI
+  surfaces the error state (hooks return `{error}`); restart; show recovery.
+
+"Failure visible" and "recovered" must be defined concretely for the chosen
+scenario and captured as evidence.
+
+## Evidence to record (sanitized)
+
+- Commands run + exit results; local run logs (sanitized).
+- Segment 1: path ran on frozen inputs, read-back succeeded.
+- Segment 2: UI screenshots of core screens rendering real-API data.
+- Failure/recovery: before/after showing failure surfaced then recovered.
+- Commit SHAs for any code touched. No signed URLs, keys, tokens, customer data.
+
+## Gates / guardrails
+
+- No deploy. No live DynamoDB/S3 writes — scratch stores only, deleted after.
+- No yfinance / live external calls in the core run (frozen inputs).
+- Nothing Ian-gated is triggered. Reversible throughout.
+- A handoff after this reports operational reliability **as exercised locally**,
+  explicitly states nothing is deployed, and does NOT by itself request LW-302
+  `done` — governance + Ian decide, and deployed evidence (if wanted) is a
+  separate gated task.
+
+## Resolved design decisions (from /plan-eng-review, 2026-10-02)
+
+All four decisions resolved to option A. These are now the plan of record.
+
+- **D1 / D-COMPUTE = A.** Point `LIVEWELL_BUCKET` at a scratch location
+  pre-seeded from `frozen/baseline-v1/`, and invoke only
+  `run_features → run_signals → score` directly in a throwaway local script —
+  NOT the full `run_instrument` (which would call `run_ingestion()`/yfinance).
+  **Zero committed production-code change.** Mirrors the approved replay
+  approach. Rejected: adding a `skip_ingestion` param to the production
+  entrypoint (B) or monkeypatching `run_ingestion` (C) — both touch/mock
+  production internals for a one-off verification.
+
+- **D2 / D-BRIDGE = A.** Seed a **scratch DynamoDB table**
+  `livewell-signals-<scratch-env>` from
+  `frozen/baseline-v1/results/signals-export.json`, set
+  `LIVEWELL_ENV=<scratch>`, and run the real API against it. `_table()`
+  resolves the scratch name unmodified; **live `livewell-signals-prod` is never
+  touched**; drop the scratch table after. Rejected: DynamoDB Local (B — needs
+  an endpoint-override shim `_table()` doesn't have) and an API read-shim (C —
+  bypasses the real DynamoDB read path, proving nothing operational).
+
+- **D3 / D-UI = A.** Gate MSW startup behind an env flag (e.g. `VITE_USE_MSW`),
+  **defaulting to current behavior** (MSW on in dev). Run the exercise with the
+  flag off so the UI hits the real local API via the existing Vite `/api` proxy.
+  One small, guarded, reusable committed line; **committed default unchanged**.
+  Rejected: uncommitted local hack to `main.tsx` (B) and MSW passthrough (C).
+
+- **D4 / D-FAIL = A.** Exercise exactly ONE scenario: **missing/corrupt input
+  for one instrument mid-compute (Segment 1).** This tests the failure contract
+  already specified in `docs/04_pipeline_architecture.md` ("if one pair's data
+  is missing, continue processing others if safe"; "if model artifact missing
+  or schema mismatch occurs, block … and surface alert") and `handler.py`'s
+  error accounting (`dispatch_partial` / `dispatch_failed`). Procedure: remove/
+  corrupt one seeded instrument input → show the failing instrument surfaces an
+  error while others proceed → restore input → show clean recompletion. Rejected:
+  backend-down-for-UI (B — tests frontend error handling, not pipeline
+  reliability) and both-A-and-B (C — doubles a deliberately bounded exercise).
+
+## GSTACK REVIEW REPORT
+
+Reviewed by: /plan-eng-review (interactive, prose decision briefs — no
+AskUserQuestion tool in session). Scope gate: user-named target
+(this draft). Date: 2026-10-02. Governance snapshot: rev 169.
+
+### Source-of-truth docs read
+- `docs/04_pipeline_architecture.md` — intended production flow + the
+  **failure-handling contract** the D4 scenario now tests against.
+- `docs/research/lw302-replay-verification-plan.md` — reused machinery; the
+  reproducibility sub-claim is already recorded (1,831/1,831) and is NOT
+  repeated here.
+- Code read: `pipeline/runner.py`, `pipeline/handler.py`,
+  `signals/dynamodb.py`, `apps/web/vite.config.ts`, both app `CLAUDE.md`.
+
+### Step 0 — scope challenge
+- Reuses existing replay machinery, frozen artifacts, and the real API read
+  path rather than rebuilding. Correct.
+- Complexity gate (8+ files / 2+ services) NOT triggered — local verification
+  scaffolding, no new committed services.
+- Near-zero committed code change is the governing constraint; all four
+  decisions chosen to honor it.
+- Gap caught and fixed: the draft did not reference the pipeline doc's
+  documented failure contract; D4 now tests that specified behavior.
+
+### Decisions
+| ID | Topic | Resolution |
+|----|-------|------------|
+| D1 | Skip-ingestion compute path | A — scratch bucket + direct features→signals→score; no prod-code change |
+| D2 | Frozen→serve bridge | A — scratch DynamoDB table seeded from export; live prod untouched |
+| D3 | Real API vs MSW in dev UI | A — `VITE_USE_MSW` flag, default unchanged |
+| D4 | Failure/recovery scenario | A — missing-input mid-compute, tests documented contract |
+
+Note: decisions differ in kind, not coverage — no completeness scores.
+
+### Architecture / blast radius
+- All work is local and reversible: scratch S3 location, scratch DynamoDB
+  table, env flags. No deploy, no live writes, no yfinance calls.
+- Blast radius on committed code: one guarded `VITE_USE_MSW` line (default
+  preserved). Everything else is throwaway local scripting / env config.
+- Honesty gate preserved: this exercise does NOT by itself justify marking
+  LW-302 done; it covers the operational-reliability portion only, locally,
+  with deployment explicitly out of scope and Ian-gated.
+
+### Residual risks / notes
+- Scratch DynamoDB table must use a clearly non-prod env suffix; verify
+  `LIVEWELL_ENV` is set before the API starts so `_table()` never resolves
+  `prod`. Delete the scratch table at the end.
+- The frozen export mixes 1,831 scored + 15,032 unscored rows; the UI render
+  check should account for unscored rows rendering as expected (not a defect).
+- No test-framework change required; existing pytest/vitest suites are not the
+  subject of this exercise.
+
+### Verdict
+Plan is sound and ready to execute as written, with D1–D4 = A. Smallest honest
+exercise that satisfies the NBA's "exercise the core path + bounded
+failure/recovery, record deploy/operate evidence (local)". Execution is a
+separate step and was NOT performed during this review.

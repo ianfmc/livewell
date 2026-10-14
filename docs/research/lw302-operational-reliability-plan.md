@@ -205,3 +205,80 @@ Plan is sound and ready to execute as written, with D1–D4 = A. Smallest honest
 exercise that satisfies the NBA's "exercise the core path + bounded
 failure/recovery, record deploy/operate evidence (local)". Execution is a
 separate step and was NOT performed during this review.
+
+
+
+## EXECUTION RESULTS (2026-10-14)
+
+Executed locally per D1–D4 = A. Fully offline / scratch-only; **no deploy, no
+live AWS writes, no yfinance.** Verified afterward: frozen prefix intact
+(187/187/187/1/1 unchanged), no `*-scratch` tables in live DynamoDB.
+
+### Segment 1 — compute path on frozen data (D1 = A, moto in-process S3)
+- Seeded an in-process moto S3 bucket from frozen `baseline-v1` prices+features
+  (374 parquet objects), set `LIVEWELL_BUCKET` to the scratch bucket, and ran
+  the **real** `run_signals` (1d) + read-back + score with the model pinned
+  directly (bypassing the DynamoDB registry, exactly as the approved replay).
+  No `run_ingestion`/yfinance.
+- **Result:** `run_signals` succeeded=19 failed=0; 19/19 latest signals
+  (all dated 2026-09-24) read back and scored with the pinned
+  RandomForestClassifier (n_features_in_=12). Sample scores: EURUSD
+  0.8514054816393779, USDJPY 0.5053177936283934, XAUUSD 0.7924157485988965,
+  NQ 0.034513620611303544. **PASS.**
+
+### D4 — bounded failure / recovery (D4 = A, missing input mid-compute)
+Tests the failure contract in `docs/04_pipeline_architecture.md`
+("if one pair's data is missing, continue processing others if safe").
+- **Failure injected** (dropped EURUSD inputs): logged
+  `ERROR ... no feature files found for EURUSD/1d`; run summary reported
+  `succeeded=18 failed=1 failed_list=['EURUSD']`, `read_or_score_failures=1`.
+  The other **18 instruments processed and scored normally** — graceful
+  degradation, failure isolated and surfaced.
+- **Recovery** (inputs restored, clean run): `succeeded=19 failed=0`; EURUSD
+  returned with score 0.8514054816393779, identical to its pre-failure value.
+- **No cross-contamination:** the 18 surviving instruments produced
+  byte-identical scores in the degraded and recovery runs (diff = empty).
+  **PASS.**
+
+### Segment 2 — serve path, real API over scratch DynamoDB (D2 = A, D3 = A)
+- D2: seeded **DynamoDB Local** (`localhost:8001`, Docker) with scratch tables
+  `livewell-signals-scratch` (from the frozen `signals-export.json`; 19
+  instruments latest) and `livewell-model-registry-scratch` (active
+  `rf_tuned/20260507T144919`). boto3 1.42 honored
+  `AWS_ENDPOINT_URL_DYNAMODB` with **no code change**. Live
+  `livewell-signals-prod` never touched.
+- D3: the UI's mock gate is `VITE_USE_MOCKS` and defaults **off** (MSW starts
+  only when `=== 'true'`), so the real-API path needs **no code change** — the
+  planned `VITE_USE_MSW` flag was unnecessary. Divergence from the plan, in the
+  plan's favor (smaller blast radius).
+- Exercised the **real FastAPI app** (`LIVEWELL_ENV=scratch`) against the
+  scratch tables via `TestClient` (Option 2 — see constraint below), hitting
+  the exact router → `get_latest_signals`/`get_signal` → transform → Pydantic
+  response path the UI depends on.
+- **Result:** `/health` 200; `/api/signals` 200 (**19 contract cards**, one per
+  instrument); `/api/dashboard` 200 (markets/modelHealth/opportunities/
+  topCandidates); `/api/model/health` 200 (reads seeded registry);
+  `/api/signals/tracker` 200; contract detail `/api/signals/Gold/x` 200
+  (prob 0.7924157485988965 — **matches the Segment 1 XAUUSD score exactly** —
+  edge 0.5848, conf High, regime bullish). **PASS.**
+
+### Honest gaps / exclusions
+- **Browser render not exercised.** The agent execution environment blocks
+  launching long-running servers (uvicorn, `npm run dev`) and has no browser
+  driver, so Segment 2 used an in-process `TestClient` (Option 2) rather than a
+  rendered browser against a live `uvicorn` + `npm run dev`. The **API contract
+  the UI depends on is proven**; the visual render is NOT independently
+  verified here. To close this, run the two dev servers manually and eyeball
+  Dashboard / Daily Signals / Contract Detail (mocks off).
+- **`/api/backtest/summary` not covered** — reads `backtest/summary.json` from
+  S3 (`LIVEWELL_BUCKET`), not DynamoDB; no frozen backtest artifact exists, so
+  it returned 500 ("no S3 bucket"). Out of scope for this DynamoDB-backed
+  serve-path exercise; not a core-path defect.
+- **Deployment / scheduling (EventBridge) not exercised** — explicitly out of
+  scope (no deploy; Ian-gated). LW-302 is therefore **NOT** complete on the
+  strength of this exercise; this covers local operational reliability of the
+  compute + serve paths and the documented failure/recovery contract only.
+
+### Teardown
+Scratch DynamoDB Local container removed, `/tmp/lw302exec` deleted. No scratch
+state persisted. (See teardown commands run at execution time.)

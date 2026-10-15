@@ -282,3 +282,59 @@ Tests the failure contract in `docs/04_pipeline_architecture.md`
 ### Teardown
 Scratch DynamoDB Local container removed, `/tmp/lw302exec` deleted. No scratch
 state persisted. (See teardown commands run at execution time.)
+
+
+
+## RENDERED-UI CHECK + a2ui REMOVAL (2026-10-15)
+
+The browser-render step revealed that the web app **blank-screened** on load:
+`A2uiProvider` (wrapping the whole app in both `main.tsx` and `App.tsx`)
+returned HTTP 500 because `@a2ui/react/v0_9` / `@a2ui/web_core/v0_9` subpath
+imports could not be resolved (the `a2ui/` sibling repo is git-ignored and the
+subpaths don't resolve). This made the rendered-UI portion of LW-302 impossible
+until repaired or removed. Ian correctly scoped this as *on* the LW-302 critical
+path, and chose removal.
+
+### Finding: a2ui was vestigial
+`SignalExplainPanel` and `useSignalExplain` already use plain MUI + `fetch`
+against `/api/explain/{id}` — they do NOT use a2ui. The `A2uiProvider` context
+was read by no component (`useA2ui` imported only by its own test). So a2ui was
+dead code providing nothing; removal is pure subtraction, zero feature loss.
+(Leading-practice note: had a2ui actually powered the panel, the right move
+would have been an error-boundary + lazy isolate so a broken optional feature
+degrades locally instead of blank-screening the app — not a full remove.)
+
+### Removal (web-app change, commit forthcoming)
+- `main.tsx`, `App.tsx`: removed both `A2uiProvider` wrappers + imports.
+- Deleted `src/a2ui/` (`A2uiProvider.tsx`, `useA2ui.ts`, and its test).
+- Rewrote `SignalExplainPanel.test.tsx` and `useSignalExplain.test.tsx` to the
+  CURRENT fetch/`data` source (they were stale — testing an old SSE/`surface`
+  a2ui design that no longer matched the shipped code).
+- Removed `@a2ui/*` from `package.json`; reinstalled.
+- Fixed two PRE-EXISTING `ContractCard` type-drift errors (missing `signalId`)
+  in `DailySignals.tsx` and `contract-card.test.tsx` that blocked the build —
+  unrelated to a2ui, but in the way.
+
+### Verification
+- `npm run build`: tsc clean, vite build OK (668 modules, no a2ui error).
+- `npm run test:coverage`: 18 files / 76 tests pass; coverage 95% (>80 gate);
+  rewritten explain tests at 100%.
+- `/browse` (headless) against localhost:5173 (mocks off → real API on :8000 →
+  scratch DynamoDB): all five core screens render, **zero console errors**.
+  - Dashboard: 19 market-condition chips, Opportunity Summary (19/9/0), Top
+    Candidates (Russell 2000 +0.95, Dow +0.92, GBP/USD +0.71), Model Health.
+  - Contract Detail (Gold): PASS, bullish, High conf, Model 79%, Edge +58%,
+    and the "Why this setup" explain panel renders "Pass — score 0.79"
+    (79% matches the Segment-1 XAUUSD score 0.7924… — compute→serve→UI
+    consistent end-to-end).
+  - Signal Tracker: 19 total / 0 taken / 19 pending. Model Health: Warning,
+    Data Freshness Current.
+  - Screenshots captured (scratch, not committed): dashboard, daily-signals,
+    contract-detail, signal-tracker, model-health.
+
+### New UI finding (separate defect, recorded not fixed)
+**Daily Signals page shows "Visible Contracts: 0" even with the Status filter on
+"All"**, while the API returns 19 cards (15 Closed, 4 Review) and the Dashboard
+renders them. This is a DailySignals filter/count bug — not a data issue, not
+a2ui. Left unfixed to keep this change scoped to a2ui removal; flagged for a
+separate task/decision.

@@ -7,6 +7,7 @@ const props = {
   strike: '1.0850',
   expiry: '10:00 AM',
   status: 'Open',
+  signalId: 'EURUSD__2026-05-04',
 };
 
 function renderCard() {

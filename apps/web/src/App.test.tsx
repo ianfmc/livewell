@@ -1,17 +1,14 @@
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { A2uiProvider } from './a2ui/A2uiProvider';
 import { ThemeProvider } from './components/theme-provider';
 import App from './App';
 
 function renderApp() {
   return render(
     <MemoryRouter>
-      <A2uiProvider>
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
-      </A2uiProvider>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </MemoryRouter>
   );
 }

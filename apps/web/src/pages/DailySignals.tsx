@@ -77,6 +77,7 @@ const DailySignals = () => {
                 strike={card.strike}
                 expiry={card.expiry}
                 status={card.status}
+                signalId={card.signalId}
               />
               <Button
                 size="small"

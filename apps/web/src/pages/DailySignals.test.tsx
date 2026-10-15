@@ -2,15 +2,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { server } from '../mocks/server';
 import { http, HttpResponse } from 'msw';
-import { A2uiProvider } from '../a2ui/A2uiProvider';
 import DailySignals from './DailySignals';
 
 function renderPage() {
   return render(
     <MemoryRouter>
-      <A2uiProvider>
-        <DailySignals />
-      </A2uiProvider>
+      <DailySignals />
     </MemoryRouter>
   );
 }

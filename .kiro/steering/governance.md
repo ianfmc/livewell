@@ -10,6 +10,25 @@ This repo never edits that checklist directly. Development work here is reported
 to governance via immutable handoff files, which Ian then asks governance to
 review.
 
+The machine-global skills `governance-sync` (step 1) and `governance-handoff`
+(step 3) operationalize this workflow and read the `governance-profile` block
+below for LIVEWELL's program-specific facts.
+
+<!-- governance-profile -->
+program: LIVEWELL
+prefix: LW                         # inbox handoff filename prefix (LW-<date>-<slug>.md)
+nba:                               # follow nbas/README.md for the CURRENT revision file
+  - LIVEWELL                       # revisioned, e.g. LIVEWELL-r175.md
+remote: ianfmc/livewell
+default_branch: main
+branch_model: solo-main
+notes: >-
+  Solo repo; work lands on main. Handoff filenames use date-only granularity
+  (LW-YYYYMMDD-<slug>.md). Reference S3 by prefix (e.g.
+  s3://livewell-data-prod/frozen/baseline-v1/), never signed URLs. Deploy only
+  on Ian's explicit request.
+<!-- /governance-profile -->
+
 ## Where governance lives
 
 Handoff workspace (local clone, read the real files — do not rely on memory):

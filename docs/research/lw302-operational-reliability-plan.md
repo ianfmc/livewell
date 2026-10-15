@@ -345,3 +345,44 @@ resolve before asserting on headless-browser page text.
 All five core screens re-verified with proper waits: Dashboard, Daily Signals
 (19 cards), Contract Detail, Signal Tracker (19 total), Model Health — all
 render real data with ZERO console errors.
+
+
+
+## DEPLOYED SCHEDULING + CONTROLLED-RUN EVIDENCE (2026-10-15)
+
+The LW-302 completion gate (r177 NBA) was "deployed EventBridge schedule +
+one controlled production-like run." Ian authorized proceeding; the deployed
+infra was found ALREADY LIVE, so this was verification, NOT a first-time
+deploy. Choice C (forensic read of the latest scheduled run) was used — all
+read-only via `livewell-ro`. No `cdk deploy`, no manual Lambda invoke, no prod
+writes, no MFA, no infra change.
+
+### Deployed EventBridge scheduling — VERIFIED
+- Rule `livewell-pipeline-schedule-prod`: State ENABLED, ScheduleExpression
+  `cron(0 0 ? * MON-FRI *)`, target Lambda `livewell-pipeline-fn-prod`
+  (Target0). The deployed cron matches the CDK source
+  (`infra/lib/livewell-stack.ts` line 189) exactly — deployed == code.
+- Lambda `livewell-pipeline-fn-prod`: State Active, 512 MB / 300 s.
+- Firing on schedule: ~20 invocations per run on 2026-10-11/-12/-13/-14
+  (coordinator + ~19 workers), fresh log streams on 2026-10-15.
+
+### One controlled production-like run — VERIFIED (choice C)
+- Latest scheduled run: 2026-10-15T00:00:26Z,
+  `run_id=24f0ff63-aba7-48cc-a9e0-3e50da730349`, coordinator
+  `status=dispatched dispatched=19 errors=0`.
+- Workers completed for that run_id (per "worker done" log lines). The only
+  warnings were benign yfinance `Failed to create TzCache/CookieCache` lines
+  (Lambda read-only FS cache noise) — not pipeline failures; dispatch was 19/0.
+- End-to-end persistence confirmed: live `livewell-signals-prod` contains a
+  record from that exact run_id (e.g. `AUDUSD__2026-10-15`) with a non-null
+  score and `model_version=20260507T144919` — the same pinned baseline model.
+  So schedule -> coordinator -> worker -> scored DynamoDB write is verified on
+  one real scheduled run.
+
+### Net
+All LW-302 evidence dimensions are now covered: local compute + failure/
+recovery (moto), local serve path (TestClient over scratch DynamoDB), rendered
+UI (browser over scratch stack), AND deployed scheduling + a controlled
+(observed) production run. Remaining judgement for governance/Ian: whether this
+evidence set is sufficient to move LW-302 to `done`. No production behavior was
+changed by this verification.

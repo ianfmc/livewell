@@ -332,9 +332,16 @@ degrades locally instead of blank-screening the app — not a full remove.)
   - Screenshots captured (scratch, not committed): dashboard, daily-signals,
     contract-detail, signal-tracker, model-health.
 
-### New UI finding (separate defect, recorded not fixed)
-**Daily Signals page shows "Visible Contracts: 0" even with the Status filter on
-"All"**, while the API returns 19 cards (15 Closed, 4 Review) and the Dashboard
-renders them. This is a DailySignals filter/count bug — not a data issue, not
-a2ui. Left unfixed to keep this change scoped to a2ui removal; flagged for a
-separate task/decision.
+### UI finding — RETRACTED (was a capture-timing artifact, not a defect)
+Initial `/browse` capture reported Daily Signals showing "Visible Contracts: 0"
+with the Status filter on "All". **This was a false alarm:** the snapshot was
+taken ~2s after navigation, before the async `useSignals` fetch resolved
+(`loading` starts `true` with 0 cards). Re-checked with a 5s wait and a direct
+in-page `fetch('/api/signals')`: the page shows **"Visible Contracts: 19 |
+Review Needed: 4"** and renders all 19 cards (19 "Explain" buttons). No code
+change made — the page is correct. Lesson recorded: wait for async hooks to
+resolve before asserting on headless-browser page text.
+
+All five core screens re-verified with proper waits: Dashboard, Daily Signals
+(19 cards), Contract Detail, Signal Tracker (19 total), Model Health — all
+render real data with ZERO console errors.

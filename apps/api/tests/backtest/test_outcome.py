@@ -12,6 +12,26 @@ def _price_df(dates_and_closes: list[tuple[str, float]]) -> pd.DataFrame:
 
 
 class TestIsWin:
+    # Real pipeline vocabulary: buy / sell / none
+    def test_buy_win(self):
+        assert is_win("buy", 1.0850, 1.0900) is True
+
+    def test_buy_loss(self):
+        assert is_win("buy", 1.0850, 1.0800) is False
+
+    def test_buy_exact_strike(self):
+        assert is_win("buy", 1.0850, 1.0850) is False
+
+    def test_sell_win(self):
+        assert is_win("sell", 1.0850, 1.0800) is True
+
+    def test_sell_loss(self):
+        assert is_win("sell", 1.0850, 1.0900) is False
+
+    def test_sell_exact_strike(self):
+        assert is_win("sell", 1.0850, 1.0850) is False
+
+    # Backward-compatible aliases: call / put
     def test_call_win(self):
         assert is_win("call", 1.0850, 1.0900) is True
 
@@ -41,7 +61,7 @@ class TestResolveTrade:
             "signal_id": "EURUSD__2026-05-07",
             "date": "2026-05-07",
             "s3_key": "EURUSD",
-            "direction": "call",
+            "direction": "buy",
             "strike_candidate": "1.0850",
             "signal_valid": True,
             "trend_bias": "bullish",
@@ -52,7 +72,7 @@ class TestResolveTrade:
         assert result["win"] is True
         assert result["next_close"] == pytest.approx(1.0950)
         assert result["strike"] == pytest.approx(1.0850)
-        assert result["direction"] == "call"
+        assert result["direction"] == "buy"
         assert result["instrument"] == "EURUSD"
         assert result["signal_valid"] is True
         assert result["regime"] == "bullish"
@@ -77,7 +97,7 @@ class TestResolveTrade:
             "signal_id": "EURUSD__2026-05-07",
             "date": "2026-05-07",
             "s3_key": "EURUSD",
-            "direction": "put",
+            "direction": "sell",
             "strike_candidate": "1.0850",
             "signal_valid": False,
             "trend_bias": "bearish",

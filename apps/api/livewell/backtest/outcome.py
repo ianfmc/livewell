@@ -7,10 +7,15 @@ logger = logging.getLogger(__name__)
 
 
 def is_win(direction: str, strike: float, next_close: float) -> bool:
-    """Return True if next_close beats strike in the predicted direction."""
-    if direction == "call":
+    """Return True if next_close beats strike in the predicted direction.
+
+    The signals pipeline emits direction as "buy" / "sell" / "none"
+    (see livewell/signals/signals.py). "call"/"put" are accepted as aliases
+    for backward compatibility with older records.
+    """
+    if direction in ("buy", "call"):
         return next_close > strike
-    if direction == "put":
+    if direction in ("sell", "put"):
         return next_close < strike
     return False
 

@@ -1,0 +1,56 @@
+{
+  "_comment": "LW-605 sanitized frozen fixture. Synthetic resolved-trade records (not production data) used to validate the BacktestSummary contract end-to-end: build_summary(trades) -> schema. Four trades across two instruments and two regimes, mixing wins/losses and valid/invalid signals so every contract branch (equityCurve, rows, signalValidSplit) is exercised. Values are hand-chosen for deterministic, verifiable output.",
+  "trades": [
+    {
+      "signal_id": "EURUSD__2026-01-05",
+      "date": "2026-01-05",
+      "instrument": "EURUSD",
+      "direction": "buy",
+      "strike": 1.0850,
+      "next_close": 1.0900,
+      "win": true,
+      "signal_valid": true,
+      "regime": "bullish"
+    },
+    {
+      "signal_id": "EURUSD__2026-01-06",
+      "date": "2026-01-06",
+      "instrument": "EURUSD",
+      "direction": "buy",
+      "strike": 1.0850,
+      "next_close": 1.0800,
+      "win": false,
+      "signal_valid": true,
+      "regime": "bullish"
+    },
+    {
+      "signal_id": "GBPUSD__2026-01-07",
+      "date": "2026-01-07",
+      "instrument": "GBPUSD",
+      "direction": "sell",
+      "strike": 1.2650,
+      "next_close": 1.2600,
+      "win": true,
+      "signal_valid": false,
+      "regime": "bearish"
+    },
+    {
+      "signal_id": "GBPUSD__2026-01-08",
+      "date": "2026-01-08",
+      "instrument": "GBPUSD",
+      "direction": "sell",
+      "strike": 1.2650,
+      "next_close": 1.2550,
+      "win": true,
+      "signal_valid": true,
+      "regime": "bearish"
+    }
+  ],
+  "expected": {
+    "totalTrades": 4,
+    "winRate": 0.75,
+    "avgEdge": 0.875,
+    "maxDrawdown": -0.0377,
+    "equityCurveValues": [1060.0, 1020.0, 1080.0, 1140.0]
+  }
+}

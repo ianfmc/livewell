@@ -119,3 +119,81 @@ Feasible and ready to implement as written. One real bug fix (with tests) is in
 scope and required for criterion 4; everything else is offline validation reusing
 proven patterns. No deploy, no prod writes, baseline preserved. Implementation is
 a separate step; not performed in this review.
+
+
+---
+
+## EXECUTION RESULTS (2026-10-16)
+
+Status: executed as planned. All 5 acceptance criteria met. Local/scratch only;
+no production writes beyond one authorized scratch bucket (`lw304-scratch-ui`,
+flagged for teardown). Baseline `frozen/baseline-v1/` untouched.
+
+### Code fix (step 1)
+
+`is_win` now accepts the real signal vocabulary and keeps aliases:
+`buy`/`call` → ITM when `next_close > strike`; `sell`/`put` → ITM when
+`next_close < strike`; anything else → False. `test_outcome.py` updated with
+buy/sell coverage, retained alias tests, and resolve_trade tests switched to the
+real vocabulary. Committed `6b56eaf`. **36 backtest tests pass.**
+
+Pre-existing, unrelated failures (confirmed by stashing the fix and re-running
+on prior HEAD — they fail identically without this change; out of LW-304 scope):
+- `tests/explain/test_router.py` — 4 failures (SSE / AttributeError).
+- `tests/models/test_train.py` — 3 failures (KeyError).
+
+### Artifact (criterion 1) + determinism (criterion 4)
+
+Produced `summary.json` fully offline from the frozen baseline — signals read
+directly from the frozen `signals-export.json` and prices from local frozen
+parquet, bypassing the DynamoDB scan in `load_all_signals` (no live tables
+required). Harness: `/tmp/lw304exec/make_summary.py` (scratch, for teardown).
+
+Headline figures (byte-identical across repeated runs → criterion 4 met):
+
+| Field | Value |
+|-------|-------|
+| totalTrades | 15800 |
+| winRate | 0.1892 (18.9%) |
+| avgEdge | -0.5271 |
+| maxDrawdown | -333.24 |
+| rows | 38 |
+| equityCurve points | 15800 |
+| skipped (latest-date, no next day) | 10 |
+
+### API (criterion 2)
+
+`/api/backtest/summary` → **200**, schema-valid `BacktestSummary`, returning the
+figures above. Verified first via moto + TestClient, then against the live local
+API reading the scratch bucket. Credential note: uvicorn must be launched with
+the AWS profile in its environment (`AWS_PROFILE=livewell-ro
+AWS_DEFAULT_REGION=us-west-1 LIVEWELL_BUCKET=lw304-scratch-ui`); an initial 500
+was AccessDenied from a server process that had not inherited the assumed-role
+credentials — resolved by exporting creds into the uvicorn env. Least-privilege:
+API ran under read-only `livewell-ro`.
+
+### UI (criterion 3)
+
+With the local stack running (API :8000, web :5173; Ian started the servers —
+agent exec guard blocks launching them), `/browse` to
+`http://localhost:5173/backtest` rendered Total Trades 15,800 / Win Rate 18.9% /
+Avg Edge −52.7% / Max Drawdown, the equity curve, and the 38-row table, with
+**zero console errors**. (A screenshot was saved under a `.jpg` name but is
+actually PNG bytes — a cosmetic extension/format label mismatch from `/browse`,
+no impact on the result.)
+
+### Guardrails (criterion 5)
+
+All work scratch/local. One authorized scratch bucket `lw304-scratch-ui` created
+for the live-API render; **flagged for teardown**
+(`aws s3 rb s3://lw304-scratch-ui --force`). Frozen baseline preserved and
+untouched. No deploy. No writes to any `livewell-*-prod` table or the production
+data bucket.
+
+### Finding (not a validation failure)
+
+An 18.9% win rate with negative average edge means the naive next-day-close
+binary rule loses on the frozen data. This is a **strategy observation**, surfaced
+once the direction bug was fixed and the surface produced real figures — LW-304
+validates the backtest SURFACE (artifact → API → UI → deterministic), not model
+profitability. Recorded for governance; it is not a defect in the backtest path.

@@ -1,23 +1,16 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ThemeProviderContext, type Theme } from "./theme-context";
 
-export type Theme = "light" | "dark";
-
-export type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
-
-export const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
+function initialTheme(): Theme {
+  // Lazy initializer avoids a synchronous setState in an effect.
+  const stored = (typeof localStorage !== "undefined"
+    ? localStorage.getItem("theme")
+    : null) as Theme | null;
+  return stored ?? "light";
+}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem("theme") as Theme | null;
-    if (storedTheme) {
-      setTheme(storedTheme);
-    }
-  }, []);
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -31,14 +24,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeProviderContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeProviderContext);
-
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-
-  return context;
 }

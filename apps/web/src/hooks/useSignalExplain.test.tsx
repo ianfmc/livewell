@@ -20,7 +20,7 @@ afterEach(() => {
 
 describe('useSignalExplain', () => {
   it('starts loading when signalId is provided', () => {
-    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}) as any);
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}) as unknown as Promise<Response>);
     const { result } = renderHook(() => useSignalExplain('EURUSD__2026-05-04'));
     expect(result.current.loading).toBe(true);
     expect(result.current.data).toBeNull();
@@ -35,13 +35,13 @@ describe('useSignalExplain', () => {
   it('fetches the correct URL', () => {
     const spy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue({ ok: true, json: async () => SAMPLE } as any);
+      .mockResolvedValue({ ok: true, json: async () => SAMPLE } as unknown as Response);
     renderHook(() => useSignalExplain('EURUSD__2026-05-04'));
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('/api/explain/EURUSD__2026-05-04'));
   });
 
   it('populates data on success', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => SAMPLE } as any);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => SAMPLE } as unknown as Response);
     const { result } = renderHook(() => useSignalExplain('EURUSD__2026-05-04'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.data).toEqual(SAMPLE);
@@ -51,7 +51,7 @@ describe('useSignalExplain', () => {
   it('sets error on non-ok response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: false, status: 500, statusText: 'Internal Server Error',
-    } as any);
+    } as unknown as Response);
     const { result } = renderHook(() => useSignalExplain('EURUSD__2026-05-04'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).not.toBeNull();

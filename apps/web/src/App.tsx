@@ -22,7 +22,7 @@ import ModelHealth from './pages/ModelHealth';
 import HowItWorks from './pages/HowItWorks';
 import SignalTracker from './pages/SignalTracker';
 import OptionsAdvisor from './pages/OptionsAdvisor';
-import { useTheme } from './components/theme-provider';
+import { useTheme } from './components/theme-context';
 
 const NAV_ITEMS = [
   { label: 'Dashboard',        path: '/' },

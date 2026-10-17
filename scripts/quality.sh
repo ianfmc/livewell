@@ -32,7 +32,7 @@ WEB_DIR="$ROOT/apps/web"
 
 # --- known pre-existing failure baselines (real run 2026-10-16) --------------
 KNOWN_API_PYTEST_FAILS=7     # tests/explain/test_router.py x4, tests/models/test_train.py x3
-KNOWN_WEB_LINT_ERRORS=8      # react-refresh x2, set-state-in-effect x2, no-explicit-any x4
+KNOWN_WEB_LINT_ERRORS=0      # LW-7001 fixed the 8 pre-existing errors (2026-10-17)
 
 new_regression=0
 summary=()

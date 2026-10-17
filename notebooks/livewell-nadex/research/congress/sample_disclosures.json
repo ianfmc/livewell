@@ -133,6 +133,22 @@
       "tx_type": "purchase", "amount_range_raw": "$1,001 - $15,000",
       "amount_min": 1001, "amount_max": 15000, "amount_currency": "USD",
       "is_amendment": false, "amends_document_id": null, "supersedes_record_id": null
+    },
+    {
+      "_case": "second-distinct-filer buy of DEMO (for cross-filer consensus, T1)",
+      "record_id": "demo:0009",
+      "source_system": "senate_efd", "document_id": "DEMO-0009", "filing_id": "DEMO-0009",
+      "line_index": 0, "source_url": "https://example.invalid/DEMO-0009", "source_format": "html",
+      "content_hash": "sha256:aaa9", "extractor": "demo@0", "schema_version": "1.0",
+      "transaction_date": "2026-02-04", "transaction_date_is_range": false,
+      "filing_date": "2026-03-09", "public_availability_at": "2026-03-10T00:00:00Z",
+      "public_availability_precision": "date", "observed_at": "2026-03-11T06:00:00Z",
+      "filer_name": "Morgan Testcase", "filer_chamber": "senate", "filer_id": null, "owner": "self",
+      "asset_text_raw": "DemoCorp Inc. Class A Common Stock (DEMO)", "asset_ticker_raw": "DEMO",
+      "asset_type": "stock", "resolved_ticker": null, "resolution_confidence": null, "needs_manual_review": true,
+      "tx_type": "purchase", "amount_range_raw": "$15,001 - $50,000",
+      "amount_min": 15001, "amount_max": 50000, "amount_currency": "USD",
+      "is_amendment": false, "amends_document_id": null, "supersedes_record_id": null
     }
   ]
 }

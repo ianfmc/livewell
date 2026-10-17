@@ -31,7 +31,7 @@ def _synthetic_df(n: int = 60) -> pd.DataFrame:
         "session_quality": rng.choice(["high", "medium", "low"], n),
         "direction": rng.choice(["buy", "sell", "none"], n),
         "signal_valid": rng.choice([True, False], n),
-        "outcome": rng.integers(0, 2, n),
+        "label": rng.integers(0, 2, n),
     })
 
 

@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
 from livewell.ingestion.constants import INSTRUMENTS
-from livewell.pipeline.dynamodb import create_run, update_run, put_signal
+from livewell.pipeline.dynamodb import create_run, put_signal, update_run
 from livewell.pipeline.runner import run_instrument
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ def handler(event: dict, context) -> dict:
 def _run_coordinator(event: dict) -> dict:
     backfill = bool(event.get("backfill", False))
     run_id = str(uuid.uuid4())
-    started_at = datetime.now(timezone.utc).isoformat()
+    started_at = datetime.now(UTC).isoformat()
     function_name = os.environ["AWS_LAMBDA_FUNCTION_NAME"]
 
     create_run(run_id, started_at)
@@ -46,7 +47,7 @@ def _run_coordinator(event: dict) -> dict:
                 raise RuntimeError(f"unexpected StatusCode {resp.get('StatusCode')}")
             dispatched.append(s3_key)
             logger.info("dispatched worker for %s (run %s)", s3_key, run_id)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001  # per-worker fan-out resilience: record and continue
             logger.error("failed to dispatch %s: %s", s3_key, exc)
             dispatch_errors.append({"s3_key": s3_key, "error": str(exc)})
 
@@ -59,7 +60,7 @@ def _run_coordinator(event: dict) -> dict:
     else:
         status = "dispatch_partial"
 
-    completed_at = datetime.now(timezone.utc).isoformat()
+    completed_at = datetime.now(UTC).isoformat()
     update_run(
         run_id=run_id,
         started_at=started_at,
@@ -69,8 +70,9 @@ def _run_coordinator(event: dict) -> dict:
         completed_at=completed_at,
     )
 
-    logger.info("coordinator done — run_id=%s status=%s dispatched=%d errors=%d",
-                run_id, status, len(dispatched), n_err)
+    logger.info(
+        "coordinator done — run_id=%s status=%s dispatched=%d errors=%d", run_id, status, len(dispatched), n_err
+    )
     return {"run_id": run_id, "status": status}
 
 

@@ -60,6 +60,31 @@ run_api() {
   else
     summary+=("API pytest        : IMPROVED — $fails failed (baseline $KNOWN_API_PYTEST_FAILS; lower KNOWN_API_PYTEST_FAILS)")
   fi
+
+  # LW-7003: formatter + typechecker (installed dev-deps, pinned)
+  hr; say "API — uv run ruff check (apps/api)"; hr
+  if (cd "$API_DIR" && uv run ruff check livewell routers schemas main.py >/tmp/lw_ruff.log 2>&1); then
+    summary+=("API ruff lint     : OK")
+  else
+    tail -5 /tmp/lw_ruff.log
+    summary+=("API ruff lint     : NEW REGRESSION — ruff findings"); new_regression=1
+  fi
+
+  hr; say "API — uv run ruff format --check (apps/api)"; hr
+  if (cd "$API_DIR" && uv run ruff format livewell routers schemas main.py --check >/tmp/lw_fmt.log 2>&1); then
+    summary+=("API ruff format   : OK")
+  else
+    tail -5 /tmp/lw_fmt.log
+    summary+=("API ruff format   : NEW REGRESSION — unformatted files"); new_regression=1
+  fi
+
+  hr; say "API — uv run mypy (apps/api)"; hr
+  if (cd "$API_DIR" && uv run mypy >/tmp/lw_mypy.log 2>&1); then
+    summary+=("API mypy          : OK")
+  else
+    tail -5 /tmp/lw_mypy.log
+    summary+=("API mypy          : NEW REGRESSION — type errors"); new_regression=1
+  fi
 }
 
 run_web() {
@@ -115,9 +140,8 @@ esac
 hr; say "QUALITY SUMMARY"; hr
 for line in "${summary[@]}"; do say "  $line"; done
 hr
-# NOTE (LW-604): the API has no formatter (ruff/black) or typechecker (mypy)
-# installed. Those are a proposed follow-up task, intentionally NOT added here.
-say "  API format/typecheck: ABSENT — proposed follow-up (ruff + mypy), not run"
+# NOTE (LW-7003): the API now runs ruff (lint + format) and mypy via pinned
+# dev-deps; baselines are clean (0). The web lint/typecheck/test arms run above.
 hr
 
 if [ "$new_regression" -ne 0 ]; then

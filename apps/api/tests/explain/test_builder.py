@@ -1,4 +1,3 @@
-import json
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -8,10 +7,6 @@ import pytest
 from livewell.explain.builder import (
     parse_signal_id,
     load_signal_row,
-    build_explain_messages,
-    SURFACE_ID_PREFIX,
-    CATALOG_ID,
-    SECTIONS,
 )
 
 
@@ -89,69 +84,3 @@ def test_load_signal_row_not_found_returns_none(mock_boto):
 
     result = load_signal_row("test-bucket", "EURUSD", "2026-05-04")
     assert result is None
-
-
-# ---------------------------------------------------------------------------
-# build_explain_messages
-# ---------------------------------------------------------------------------
-
-FIXTURE_ROW = {
-    "date": pd.Timestamp("2026-05-04", tz="UTC"),
-    "s3_key": "EURUSD",
-    "direction": "buy",
-    "ema_20": 1.085,
-    "ema_50": 1.080,
-    "rsi_14": 58.0,
-    "macd_hist": 0.0002,
-    "atr_14": 0.005,
-    "session_quality": "high",
-    "timing_slot": "buy_bullish",
-    "timing_risk": "moderate",
-    "signal_valid": True,
-    "reasoning": '["all stages passed"]',
-}
-
-
-def test_build_explain_first_two_messages_are_surface_and_components():
-    surface_id = f"{SURFACE_ID_PREFIX}EURUSD__2026-05-04"
-    claude_paragraphs = ["Trend text.", "Momentum text.", "Session text.", "Timing text."]
-
-    messages = list(build_explain_messages(surface_id, FIXTURE_ROW, claude_paragraphs))
-
-    assert len(messages) == 7  # createSurface + updateComponents + header + 4 sections
-
-    first = json.loads(messages[0])
-    assert "createSurface" in first
-    assert first["createSurface"]["surfaceId"] == surface_id
-    assert first["createSurface"]["catalogId"] == CATALOG_ID
-
-    second = json.loads(messages[1])
-    assert "updateComponents" in second
-    comp_ids = [c["id"] for c in second["updateComponents"]["components"]]
-    assert comp_ids == ["root", "header", "trend", "momentum", "session", "timing"]
-
-
-def test_build_explain_header_message():
-    surface_id = f"{SURFACE_ID_PREFIX}EURUSD__2026-05-04"
-    messages = list(build_explain_messages(surface_id, FIXTURE_ROW, ["T.", "M.", "S.", "Ti."]))
-
-    header_msg = json.loads(messages[2])
-    assert "updateDataModel" in header_msg
-    assert header_msg["updateDataModel"]["path"] == "/header"
-    assert "EURUSD" in header_msg["updateDataModel"]["value"]
-    assert "buy" in header_msg["updateDataModel"]["value"]
-
-
-def test_build_explain_section_messages_match_paragraphs():
-    surface_id = f"{SURFACE_ID_PREFIX}EURUSD__2026-05-04"
-    paragraphs = ["Trend text.", "Momentum text.", "Session text.", "Timing text."]
-    messages = list(build_explain_messages(surface_id, FIXTURE_ROW, paragraphs))
-
-    section_msgs = [json.loads(m) for m in messages[3:]]
-    paths = [m["updateDataModel"]["path"] for m in section_msgs]
-    assert paths == ["/trend", "/momentum", "/session", "/timing"]
-    assert section_msgs[0]["updateDataModel"]["value"] == "Trend text."
-
-
-def test_sections_constant():
-    assert SECTIONS == ["trend", "momentum", "session", "timing"]

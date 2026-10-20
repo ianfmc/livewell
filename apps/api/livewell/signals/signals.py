@@ -1,17 +1,17 @@
 """Signal generation pipeline: read features+prices from S3, apply 5-stage rules, write signals."""
+
 from __future__ import annotations
 
 import json
 import logging
-import math
 import os
 
 import boto3
 import pandas as pd
 
+from livewell.features.constants import FEATURES_PREFIX, PRICES_PREFIX
 from livewell.ingestion.constants import INSTRUMENTS, INTERVALS
 from livewell.ingestion.s3 import read_parquet, write_parquet
-from livewell.features.constants import FEATURES_PREFIX, PRICES_PREFIX
 from livewell.signals.constants import (
     ATR_FEASIBILITY_MULTIPLIER,
     INSTRUMENT_ASSET_CLASS,
@@ -42,10 +42,9 @@ def _session_quality(s3_key: str, ts: pd.Timestamp) -> str:
         if start < end:
             if start <= hour < end:
                 return quality
-        else:
-            # Crosses midnight (e.g. 23–07)
-            if hour >= start or hour < end:
-                return quality
+        # Crosses midnight (e.g. 23–07)
+        elif hour >= start or hour < end:
+            return quality
 
     return "low"
 
@@ -222,7 +221,10 @@ def _signals_one(instrument: dict, interval: str, bucket: str) -> None:
     signal_rows = []
     for _, row in merged.iterrows():
         pipeline_out = _apply_pipeline(s3_key, row.to_dict())
-        signal_row = {col: row[col] for col in ["date", "ema_20", "ema_50", "rsi_14", "macd", "macd_signal", "macd_hist", "atr_14"]}
+        signal_row = {
+            col: row[col]
+            for col in ["date", "ema_20", "ema_50", "rsi_14", "macd", "macd_signal", "macd_hist", "atr_14"]
+        }
         signal_row.update(pipeline_out)
         signal_rows.append(signal_row)
 
@@ -256,11 +258,7 @@ def run_signals(
         {"succeeded": [...], "failed": [...]}
     """
     bucket = os.environ["LIVEWELL_BUCKET"]
-    targets = (
-        [i for i in INSTRUMENTS if i["s3_key"] in instruments]
-        if instruments
-        else INSTRUMENTS
-    )
+    targets = [i for i in INSTRUMENTS if i["s3_key"] in instruments] if instruments else INSTRUMENTS
     target_intervals = intervals if intervals else list(INTERVALS.keys())
 
     failed_pairs: list[tuple[str, str]] = []
@@ -269,10 +267,12 @@ def run_signals(
         for interval in target_intervals:
             try:
                 _signals_one(instrument, interval, bucket)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  # per-instrument resilience: one failure must not abort the batch
                 logger.error(
                     "failed to compute signals %s/%s: %s",
-                    instrument["s3_key"], interval, exc,
+                    instrument["s3_key"],
+                    interval,
+                    exc,
                 )
                 failed_pairs.append((instrument["s3_key"], interval))
 

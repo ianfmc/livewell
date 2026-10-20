@@ -1,18 +1,11 @@
-"""Assemble A2UI SSE messages for a signal explanation."""
-from __future__ import annotations
+"""Build a JSON signal explanation (four Claude-written sections + a header)."""
 
-import json
-import os
-from collections.abc import Iterator
+from __future__ import annotations
 
 import boto3
 import pandas as pd
 
 from livewell.signals.constants import SIGNALS_PREFIX
-
-SURFACE_ID_PREFIX = "explain-"
-CATALOG_ID = "https://a2ui.org/specification/v0_9/basic_catalog.json"
-SECTIONS = ["trend", "momentum", "session", "timing"]
 
 SYSTEM_PROMPT = """\
 You are a trading signal analyst for NADEX binary options. Given a signal row, \
@@ -41,7 +34,7 @@ def load_signal_row(bucket: str, s3_key: str, date_str: str) -> dict | None:
     try:
         obj = client.get_object(Bucket=bucket, Key=key)
         df = pd.read_parquet(obj["Body"])
-    except Exception:
+    except Exception:  # noqa: BLE001  # any S3/parquet read failure -> treat as "not found"
         return None
 
     df["date"] = pd.to_datetime(df["date"], utc=True)
@@ -74,63 +67,6 @@ def _build_header(row: dict) -> str:
     return f"{row.get('s3_key')} · {row.get('direction')} · {date_label}"
 
 
-def build_explain_messages(
-    surface_id: str,
-    row: dict,
-    paragraphs: list[str],
-) -> Iterator[str]:
-    """
-    Yield A2UI JSON message strings for a signal explanation.
-
-    Args:
-        surface_id: Full surface ID string e.g. "explain-EURUSD__2026-05-04"
-        row: Signal row dict (output of load_signal_row)
-        paragraphs: List of 4 prose strings [trend, momentum, session, timing]
-    """
-    # ① createSurface
-    yield json.dumps({
-        "version": "v0.9",
-        "createSurface": {"surfaceId": surface_id, "catalogId": CATALOG_ID},
-    })
-
-    # ② updateComponents — deterministic layout skeleton
-    yield json.dumps({
-        "version": "v0.9",
-        "updateComponents": {
-            "surfaceId": surface_id,
-            "components": [
-                {"id": "root", "component": "Column", "children": ["header", "trend", "momentum", "session", "timing"]},
-                {"id": "header", "component": "Text", "text": {"path": "/header"}},
-                {"id": "trend",    "component": "Text", "text": {"path": "/trend"}},
-                {"id": "momentum", "component": "Text", "text": {"path": "/momentum"}},
-                {"id": "session",  "component": "Text", "text": {"path": "/session"}},
-                {"id": "timing",   "component": "Text", "text": {"path": "/timing"}},
-            ],
-        },
-    })
-
-    # ③ header (assembled by backend, not Claude)
-    yield json.dumps({
-        "version": "v0.9",
-        "updateDataModel": {
-            "surfaceId": surface_id,
-            "path": "/header",
-            "value": _build_header(row),
-        },
-    })
-
-    # ④–⑦ one updateDataModel per Claude paragraph
-    for section, text in zip(SECTIONS, paragraphs):
-        yield json.dumps({
-            "version": "v0.9",
-            "updateDataModel": {
-                "surfaceId": surface_id,
-                "path": f"/{section}",
-                "value": text,
-            },
-        })
-
-
 def build_explanation(bucket: str, signal_id: str) -> dict:
     """
     Full pipeline: parse signal_id, load S3 row, call Claude, return dict.
@@ -140,13 +76,13 @@ def build_explanation(bucket: str, signal_id: str) -> dict:
     Raises LookupError if signal row not found in S3.
     """
     import anthropic
+    from anthropic.types import TextBlock
 
     s3_key, date_str = parse_signal_id(signal_id)
     row = load_signal_row(bucket, s3_key, date_str)
     if row is None:
         raise LookupError(f"Signal not found: {signal_id}")
 
-    surface_id = f"{SURFACE_ID_PREFIX}{signal_id}"
     user_message = _format_row_for_prompt(row)
 
     client = anthropic.Anthropic()
@@ -156,7 +92,10 @@ def build_explanation(bucket: str, signal_id: str) -> dict:
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
-    full_text = response.content[0].text.strip()
+    block = response.content[0]
+    if not isinstance(block, TextBlock):
+        raise RuntimeError(f"Expected a text block from Claude, got {type(block).__name__}")
+    full_text = block.text.strip()
 
     # Split on double newlines into up to 4 paragraphs
     raw_paragraphs = [p.strip() for p in full_text.split("\n\n") if p.strip()]

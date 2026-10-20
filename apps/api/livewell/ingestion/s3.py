@@ -1,4 +1,5 @@
 """S3 read/write helpers for OHLCV Parquet files."""
+
 from __future__ import annotations
 
 import io

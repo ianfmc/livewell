@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 from decimal import Decimal
 
@@ -63,13 +64,15 @@ def register_model(
         )
 
     # Write new active record
-    table.put_item(Item={
-        "model_name": model_name,
-        "version": version,
-        "s3_path": s3_path,
-        "features": features,
-        "win_rate": Decimal(str(win_rate)),
-        "ev": Decimal(str(ev)),
-        "trained_at": trained_at,
-        "status": "active",
-    })
+    table.put_item(
+        Item={
+            "model_name": model_name,
+            "version": version,
+            "s3_path": s3_path,
+            "features": features,
+            "win_rate": Decimal(str(win_rate)),
+            "ev": Decimal(str(ev)),
+            "trained_at": trained_at,
+            "status": "active",
+        }
+    )

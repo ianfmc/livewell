@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import io
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import pandas as pd
@@ -50,6 +51,7 @@ def _str_or_none(v) -> str | None:
         return None
     try:
         import math
+
         if math.isnan(float(v)):
             return None
     except (TypeError, ValueError):
@@ -78,7 +80,7 @@ def replay_signals(
     written = 0
     skipped = 0
     failed: list[str] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for s3_key in targets:
         batch: list[dict] = []
@@ -138,7 +140,7 @@ def replay_signals(
                     for record in batch:
                         bw.put_item(Item=record)
                 written += len(batch)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  # per-batch resilience: record failures and continue
                 logger.error("batch write failed for %s: %s", s3_key, exc)
                 failed.extend(r["signal_id"] for r in batch)
         else:

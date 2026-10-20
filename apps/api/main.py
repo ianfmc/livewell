@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import signals, dashboard, backtest, model_health, tracker, explain
+
+from routers import backtest, dashboard, explain, model_health, signals, tracker
 
 app = FastAPI(title="LIVEWELL API", version="0.1.0")
 
@@ -34,6 +37,7 @@ def health():
 # Lambda entrypoint
 try:
     from mangum import Mangum
+
     handler = Mangum(app)
 except ImportError:
     pass  # not required for local dev

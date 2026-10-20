@@ -1,4 +1,5 @@
 """CLI entry point for running ingestion manually or from cron."""
+
 from __future__ import annotations
 
 import argparse

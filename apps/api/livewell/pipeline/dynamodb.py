@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import os
+
 import boto3
 
 
@@ -16,13 +18,15 @@ def _signals_table():
 
 
 def create_run(run_id: str, started_at: str) -> None:
-    _runs_table().put_item(Item={
-        "run_id": run_id,
-        "started_at": started_at,
-        "status": "running",
-        "instruments": [],
-        "errors": [],
-    })
+    _runs_table().put_item(
+        Item={
+            "run_id": run_id,
+            "started_at": started_at,
+            "status": "running",
+            "instruments": [],
+            "errors": [],
+        }
+    )
 
 
 def update_run(
@@ -35,9 +39,7 @@ def update_run(
 ) -> None:
     _runs_table().update_item(
         Key={"run_id": run_id, "started_at": started_at},
-        UpdateExpression=(
-            "SET #s = :s, instruments = :i, errors = :e, completed_at = :c"
-        ),
+        UpdateExpression=("SET #s = :s, instruments = :i, errors = :e, completed_at = :c"),
         ExpressionAttributeNames={"#s": "status"},
         ExpressionAttributeValues={
             ":s": status,

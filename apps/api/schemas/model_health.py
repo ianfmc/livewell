@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 from typing import Literal
+
 from pydantic import BaseModel
 
 
 class FeatureStatus(BaseModel):
     name: str
-    status: Literal['Available', 'Stale', 'Missing']
+    status: Literal["Available", "Stale", "Missing"]
 
 
 class DriftWarning(BaseModel):
@@ -14,7 +16,7 @@ class DriftWarning(BaseModel):
 
 
 class ModelHealth(BaseModel):
-    overallStatus: Literal['Healthy', 'Warning', 'Degraded']
+    overallStatus: Literal["Healthy", "Warning", "Degraded"]
     trainingDate: str
     dataFreshness: str
     calibrationError: float

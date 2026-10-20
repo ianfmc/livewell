@@ -1,5 +1,6 @@
 import logging
 import os
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -25,11 +26,11 @@ def explain_signal(signal_id: str) -> ExplainResponse:
     try:
         result = build_explanation(bucket, signal_id)
     except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001  # intentional catch-all -> 500 fallback
         logger.exception("Unexpected error in explain_signal: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return ExplainResponse(**result)

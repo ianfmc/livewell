@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import io
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import joblib
@@ -11,9 +12,9 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss
 
-from livewell.models.features import build_feature_vector, FEATURE_NAMES
+from livewell.models.features import FEATURE_NAMES
 from livewell.models.registry import register_model
-from livewell.models.train import _load_labeled_data, _build_xy, _walk_forward_split
+from livewell.models.train import _build_xy, _load_labeled_data, _walk_forward_split
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,11 @@ def run_lr_training() -> tuple:
         X_train, y_train = X[train_idx], y[train_idx]
         X_test, y_test = X[test_idx], y[test_idx]
         fold_model = LogisticRegression(
-            C=1.0, class_weight="balanced", max_iter=1000,
-            solver="lbfgs", random_state=42,
+            C=1.0,
+            class_weight="balanced",
+            max_iter=1000,
+            solver="lbfgs",
+            random_state=42,
         )
         fold_model.fit(X_train, y_train)
         proba = fold_model.predict_proba(X_test)[:, 1]
@@ -93,7 +97,7 @@ def run_lr_training() -> tuple:
     coef_df["abs_coef"] = coef_df["coefficient"].abs()
     coef_df = coef_df.sort_values("abs_coef", ascending=False).drop(columns="abs_coef").reset_index(drop=True)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     version = now.strftime("%Y%m%dT%H%M%S")
     s3_path = _upload_lr_artifact(model, version)
     register_model(
@@ -112,5 +116,7 @@ def run_lr_training() -> tuple:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     model, metrics, coef_df = run_lr_training()
-    print(f"Final fold — win_rate: {metrics['win_rate']:.3f}, brier: {metrics['brier_score']:.3f}, ev: {metrics['ev']:.3f}")
+    print(
+        f"Final fold — win_rate: {metrics['win_rate']:.3f}, brier: {metrics['brier_score']:.3f}, ev: {metrics['ev']:.3f}"
+    )
     print(coef_df.to_string(index=False))

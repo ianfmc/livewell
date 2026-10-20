@@ -1,13 +1,19 @@
 # apps/api/livewell/signals/transform.py
 from __future__ import annotations
+
 import json
 import logging
 from decimal import Decimal
+from typing import Literal
 
 from livewell.ingestion.constants import INSTRUMENTS
 from schemas.contract import ContractCard, ContractDetail, Economics, ReasonCode
 
 logger = logging.getLogger(__name__)
+
+Recommendation = Literal["Take", "Watch", "Pass"]
+Confidence = Literal["High", "Medium", "Low"]
+Regime = Literal["Bullish", "Bearish", "Neutral"]
 
 _S3_KEY_TO_NAME: dict[str, str] = {inst["s3_key"]: inst["name"] for inst in INSTRUMENTS}
 
@@ -22,7 +28,7 @@ def _score(record: dict) -> float | None:
         return None
 
 
-def _recommendation(score: float | None, signal_valid: bool, direction: str) -> str:
+def _recommendation(score: float | None, signal_valid: bool, direction: str) -> Recommendation:
     if score is None:
         return "Watch"
     if score >= 0.65 and signal_valid and direction != "none":
@@ -32,7 +38,7 @@ def _recommendation(score: float | None, signal_valid: bool, direction: str) -> 
     return "Watch"
 
 
-def _confidence(score: float | None) -> str:
+def _confidence(score: float | None) -> Confidence:
     if score is None or score < 0.58:
         return "Low"
     if score >= 0.70:
@@ -48,7 +54,7 @@ def _parse_reason_codes(reasoning: str) -> list[ReasonCode]:
     try:
         items = json.loads(reasoning)
         return [ReasonCode(label=r["label"], positive=bool(r["positive"])) for r in items]
-    except Exception:
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         return []
 
 
@@ -102,5 +108,6 @@ recommendation_from_record = _recommendation
 NAME_BY_S3_KEY = _S3_KEY_TO_NAME
 
 
-def map_regime(trend_bias: str) -> str:
-    return {"bullish": "Bullish", "bearish": "Bearish"}.get(trend_bias.lower(), "Neutral")
+def map_regime(trend_bias: str) -> Regime:
+    mapping: dict[str, Regime] = {"bullish": "Bullish", "bearish": "Bearish"}
+    return mapping.get(trend_bias.lower(), "Neutral")

@@ -1,9 +1,10 @@
 """Core ingestion logic: fetch OHLCV from yfinance, merge, write to S3."""
+
 from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
@@ -21,7 +22,7 @@ def fetch_ohlcv(
     lookback_days: int,
 ) -> pd.DataFrame | None:
     """Fetch OHLCV from yfinance for the last lookback_days. Returns None if empty."""
-    end = datetime.now(timezone.utc).replace(tzinfo=None)
+    end = datetime.now(UTC).replace(tzinfo=None)
     start = end - timedelta(days=lookback_days)
     raw = yf.Ticker(ticker).history(start=start, end=end, interval=interval)
     if raw.empty:
@@ -100,11 +101,7 @@ def run_ingestion(
         {"succeeded": [...], "failed": [...]}
     """
     bucket = os.environ["LIVEWELL_BUCKET"]
-    targets = (
-        [i for i in INSTRUMENTS if i["s3_key"] in instruments]
-        if instruments
-        else INSTRUMENTS
-    )
+    targets = [i for i in INSTRUMENTS if i["s3_key"] in instruments] if instruments else INSTRUMENTS
 
     failed_pairs: list[tuple[str, str]] = []
 
@@ -112,10 +109,12 @@ def run_ingestion(
         for interval in INTERVALS:
             try:
                 _ingest_one(instrument, interval, bucket, backfill)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  # per-instrument resilience: one failure must not abort the batch
                 logger.error(
                     "failed to ingest %s/%s: %s",
-                    instrument["s3_key"], interval, exc,
+                    instrument["s3_key"],
+                    interval,
+                    exc,
                 )
                 failed_pairs.append((instrument["s3_key"], interval))
 
@@ -124,7 +123,7 @@ def run_ingestion(
 
     try:
         run_features(instruments=instruments)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # stage-level resilience: log and continue
         logger.error("feature generation failed: %s", exc)
 
     logger.info("ingestion complete — succeeded: %s, failed: %s", succeeded, failed)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import logging
 import os
@@ -27,8 +28,8 @@ def get_backtest_summary() -> BacktestSummary:
         data = json.loads(obj["Body"].read())
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchKey":
-            raise HTTPException(status_code=404, detail="Backtest has not been run yet")
+            raise HTTPException(status_code=404, detail="Backtest has not been run yet") from e
         logger.exception("S3 error reading backtest summary: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to load backtest summary")
+        raise HTTPException(status_code=500, detail="Failed to load backtest summary") from e
 
     return BacktestSummary(**data)

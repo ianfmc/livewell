@@ -1,4 +1,5 @@
 """Core feature generation: read OHLCV from S3, compute indicators, write features to S3."""
+
 from __future__ import annotations
 
 import logging
@@ -6,11 +7,11 @@ import os
 
 import boto3
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta  # noqa: F401  # side-effect import: registers the DataFrame.ta accessor used below
 
+from livewell.features.constants import COLUMN_RENAMES, FEATURE_COLUMNS, FEATURES_PREFIX, PRICES_PREFIX
 from livewell.ingestion.constants import INSTRUMENTS, INTERVALS
 from livewell.ingestion.s3 import read_parquet, write_parquet
-from livewell.features.constants import COLUMN_RENAMES, FEATURE_COLUMNS, FEATURES_PREFIX, PRICES_PREFIX
 from livewell.signals.signals import run_signals
 
 logger = logging.getLogger(__name__)
@@ -82,11 +83,7 @@ def run_features(
         {"succeeded": [...], "failed": [...]}
     """
     bucket = os.environ["LIVEWELL_BUCKET"]
-    targets = (
-        [i for i in INSTRUMENTS if i["s3_key"] in instruments]
-        if instruments
-        else INSTRUMENTS
-    )
+    targets = [i for i in INSTRUMENTS if i["s3_key"] in instruments] if instruments else INSTRUMENTS
     target_intervals = intervals if intervals else list(INTERVALS.keys())
 
     failed_pairs: list[tuple[str, str]] = []
@@ -95,10 +92,12 @@ def run_features(
         for interval in target_intervals:
             try:
                 _features_one(instrument, interval, bucket)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  # per-instrument resilience: one failure must not abort the batch
                 logger.error(
                     "failed to compute features %s/%s: %s",
-                    instrument["s3_key"], interval, exc,
+                    instrument["s3_key"],
+                    interval,
+                    exc,
                 )
                 failed_pairs.append((instrument["s3_key"], interval))
 
@@ -109,7 +108,7 @@ def run_features(
 
     try:
         run_signals(instruments=instruments)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # stage-level resilience: log and continue
         logger.error("signal generation failed: %s", exc)
 
     return {"succeeded": succeeded, "failed": failed}

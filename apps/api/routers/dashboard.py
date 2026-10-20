@@ -1,17 +1,18 @@
 # apps/api/routers/dashboard.py
 from __future__ import annotations
+
 import logging
+
 from fastapi import APIRouter
 
+from livewell.models.registry import get_active_model
 from livewell.signals.dynamodb import get_latest_signals
 from livewell.signals.transform import (
-    to_contract_card,
-    score_from_record,
+    NAME_BY_S3_KEY,
     confidence_from_score,
     map_regime,
-    NAME_BY_S3_KEY,
+    score_from_record,
 )
-from livewell.models.registry import get_active_model
 from schemas.dashboard import (
     DashboardData,
     MarketSnapshot,

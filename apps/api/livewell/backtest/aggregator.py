@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from collections import defaultdict
 
 _COST = 40.0
@@ -39,11 +40,9 @@ def build_summary(trades: list[dict]) -> dict:
     max_dd = 0.0
     for point in curve:
         v = point["value"]
-        if v > peak:
-            peak = v
+        peak = max(peak, v)
         dd = (v - peak) / peak
-        if dd < max_dd:
-            max_dd = dd
+        max_dd = min(max_dd, dd)
 
     avg_edge = round((win_rate * _PAYOUT - _COST) / _COST, 4)
 
@@ -64,14 +63,16 @@ def build_summary(trades: list[dict]) -> dict:
         )
         # NOTE: for binary outcomes netReturn == avgEdge algebraically; kept because
         # BacktestRow schema (schemas/backtest.py) declares it as a required field.
-        rows.append({
-            "market": market,
-            "regime": regime,
-            "trades": g_total,
-            "winRate": round(g_wr, 4),
-            "avgEdge": g_edge,
-            "netReturn": g_net,
-        })
+        rows.append(
+            {
+                "market": market,
+                "regime": regime,
+                "trades": g_total,
+                "winRate": round(g_wr, 4),
+                "avgEdge": g_edge,
+                "netReturn": g_net,
+            }
+        )
 
     valid = [t for t in sorted_trades if t["signal_valid"]]
     invalid = [t for t in sorted_trades if not t["signal_valid"]]

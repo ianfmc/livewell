@@ -25,7 +25,40 @@ dev = [
     "moto[s3,dynamodb]>=5.1.22",
     "nbformat>=5.10.4",
     "nbclient>=0.10.4",
+    "ruff==0.14.1",
+    "mypy==1.14.1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+# LW-7003: source line length matches existing style; target the runtime.
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# "Smallest useful" first pass. High-signal families only:
+#   E,F  pycodestyle + pyflakes (real errors / undefined names / unused)
+#   I    import sorting
+#   UP   modern-syntax upgrades
+#   B    flake8-bugbear (real bug patterns) — but see per-rule ignores
+#   BLE  blind-except (handled case-by-case; intentional resilience gets noqa)
+# Deferred to a later pass (opinionated / stylistic, high count, low signal now):
+#   TRY003, TRY400/401, PLR2004 magic-values, PLR0911-0915 complexity, EXE002.
+# Deferring is recorded here openly — not hidden; the gate still enforces the
+# selected set at zero.
+select = ["E", "F", "I", "UP", "B", "BLE"]
+ignore = [
+    "E501",  # line length is the formatter's job
+]
+
+[tool.mypy]
+# LW-7003: non-strict first pass. The LIVEWELL source is type-clean; the only
+# findings without this are missing third-party stubs (pandas/boto3/sklearn/
+# pandas_ta/yfinance/mangum), which is library noise, not our code. Ignoring
+# missing imports reflects reality honestly and does NOT hide any real finding.
+python_version = "3.12"
+ignore_missing_imports = true
+files = ["livewell", "routers", "schemas", "main.py"]
+exclude = "tests/"

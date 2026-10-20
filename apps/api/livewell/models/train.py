@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import io
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import joblib
@@ -12,7 +13,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import brier_score_loss
 from sklearn.model_selection import GridSearchCV
 
-from livewell.models.features import build_feature_vector, FEATURE_NAMES
+from livewell.models.features import FEATURE_NAMES, build_feature_vector
 from livewell.models.registry import register_model
 
 logger = logging.getLogger(__name__)
@@ -43,8 +44,7 @@ def _build_xy(df: pd.DataFrame):
     X, y = [], []
     for _, row in df.iterrows():
         record = row.to_dict()
-        for col in ["ema_20", "ema_50", "rsi_14", "macd", "macd_signal",
-                    "macd_hist", "atr_14"]:
+        for col in ["ema_20", "ema_50", "rsi_14", "macd", "macd_signal", "macd_hist", "atr_14"]:
             record[col] = str(record[col])
         try:
             # s3_key in labeled data is a bare instrument symbol (e.g. "EURUSD"), not an S3 path
@@ -132,7 +132,7 @@ def run_training() -> tuple:
     metrics = {"win_rate": win_rate, "brier_score": brier, "ev": ev}
     logger.info("final fold metrics: %s", metrics)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     version = now.strftime("%Y%m%dT%H%M%S")
     s3_path = _upload_artifact(model, version)
     register_model(

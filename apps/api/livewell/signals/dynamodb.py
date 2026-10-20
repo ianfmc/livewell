@@ -1,5 +1,6 @@
 # apps/api/livewell/signals/dynamodb.py
 from __future__ import annotations
+
 import logging
 import os
 

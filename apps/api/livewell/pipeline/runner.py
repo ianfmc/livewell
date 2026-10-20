@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import pandas as pd
 
-from livewell.ingestion.ingest import run_ingestion
 from livewell.features.features import run_features
-from livewell.signals.signals import run_signals
-from livewell.signals.constants import SIGNAL_COLUMNS, SIGNALS_PREFIX
+from livewell.ingestion.ingest import run_ingestion
 from livewell.ingestion.s3 import read_parquet
 from livewell.models.inference import score_signal
+from livewell.signals.constants import SIGNALS_PREFIX
+from livewell.signals.signals import run_signals
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ def run_instrument(s3_key: str, run_id: str, backfill: bool = False) -> dict:
         "timing_risk": str(row.get("timing_risk", "")),
         "score": None,
         "model_version": None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     record = score_signal(record, s3_key)

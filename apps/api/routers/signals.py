@@ -1,10 +1,12 @@
 # apps/api/routers/signals.py
 from __future__ import annotations
+
 import logging
+
 from fastapi import APIRouter, HTTPException
 
 from livewell.signals.dynamodb import get_latest_signals, get_signal
-from livewell.signals.transform import to_contract_card, to_contract_detail, NAME_BY_S3_KEY
+from livewell.signals.transform import NAME_BY_S3_KEY, to_contract_card, to_contract_detail
 from schemas.contract import ContractCard, ContractDetail
 
 logger = logging.getLogger(__name__)
@@ -36,4 +38,3 @@ def get_signal_detail(instrument: str, strike: str) -> ContractDetail:
     if record is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return to_contract_detail(record)
-

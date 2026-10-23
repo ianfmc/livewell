@@ -45,16 +45,29 @@ def load_signal_row(bucket: str, s3_key: str, date_str: str) -> dict | None:
     return match.iloc[0].to_dict()
 
 
+def _num(row: dict, key: str) -> float:
+    """Coerce a possibly-string numeric field to float (DynamoDB stores these as
+    strings; S3 parquet as floats). Returns NaN when missing/unparseable so the
+    prompt still formats."""
+    raw = row.get(key)
+    if raw is None:
+        return float("nan")
+    try:
+        return float(raw)
+    except (ValueError, TypeError):
+        return float("nan")
+
+
 def _format_row_for_prompt(row: dict) -> str:
     """Format a signal row as structured text for the Claude prompt."""
     return (
         f"Instrument: {row.get('s3_key')}\n"
         f"Direction: {row.get('direction')}\n"
         f"Date: {row.get('date')}\n"
-        f"EMA 20: {row.get('ema_20', float('nan')):.5f}, EMA 50: {row.get('ema_50', float('nan')):.5f}\n"
-        f"RSI 14: {row.get('rsi_14', float('nan')):.2f}\n"
-        f"MACD hist: {row.get('macd_hist', float('nan')):.6f}\n"
-        f"ATR 14: {row.get('atr_14', float('nan')):.5f}\n"
+        f"EMA 20: {_num(row, 'ema_20'):.5f}, EMA 50: {_num(row, 'ema_50'):.5f}\n"
+        f"RSI 14: {_num(row, 'rsi_14'):.2f}\n"
+        f"MACD hist: {_num(row, 'macd_hist'):.6f}\n"
+        f"ATR 14: {_num(row, 'atr_14'):.5f}\n"
         f"Session quality: {row.get('session_quality')}\n"
         f"Timing slot: {row.get('timing_slot')}, risk: {row.get('timing_risk')}\n"
         f"Signal valid: {row.get('signal_valid')}\n"
@@ -73,13 +86,18 @@ def build_explanation(bucket: str, signal_id: str) -> dict:
 
     Returns keys: header, trend, momentum, session, timing.
     Raises ValueError if signal_id is malformed.
-    Raises LookupError if signal row not found in S3.
+    Raises LookupError if the signal row is not found.
     """
     import anthropic
     from anthropic.types import TextBlock
 
+    from livewell.signals.dynamodb import get_signal
+
     s3_key, date_str = parse_signal_id(signal_id)
-    row = load_signal_row(bucket, s3_key, date_str)
+    # Read the signal from DynamoDB first — the same source /api/signals serves,
+    # so Explain resolves for exactly the signals the list shows. Fall back to the
+    # S3 parquet for historical/frozen signals that predate the operational table.
+    row = get_signal(s3_key, date_str) or load_signal_row(bucket, s3_key, date_str)
     if row is None:
         raise LookupError(f"Signal not found: {signal_id}")
 

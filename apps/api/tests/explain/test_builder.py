@@ -84,3 +84,52 @@ def test_load_signal_row_not_found_returns_none(mock_boto):
 
     result = load_signal_row("test-bucket", "EURUSD", "2026-05-04")
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Regression (QA): build_explanation must resolve a signal that exists in
+# DynamoDB but NOT in S3 parquet. Before the fix, Explain read only S3 parquet,
+# so every live DynamoDB signal 404'd. It must now read DynamoDB first, with S3
+# as a fallback for historical/frozen rows.
+# ---------------------------------------------------------------------------
+
+_DDB_ROW = {
+    "signal_id": "GBPUSD__2026-10-23",
+    "s3_key": "GBPUSD",
+    "date": "2026-10-23",
+    "direction": "sell",
+    "ema_20": "1.33", "ema_50": "1.34", "rsi_14": "45",
+    "macd_hist": "-0.001", "atr_14": "0.004",
+    "session_quality": "high", "timing_slot": "x", "timing_risk": "low",
+    "signal_valid": True, "reasoning": "[]",
+}
+
+
+def _mock_claude(text="Trend.\n\nMomentum.\n\nSession.\n\nTiming."):
+    # Use a real anthropic TextBlock so build_explanation's isinstance(block,
+    # TextBlock) narrowing passes (it imports TextBlock inside the function).
+    from anthropic.types import TextBlock
+    resp = MagicMock()
+    resp.content = [TextBlock(type="text", text=text, citations=None)]
+    return resp
+
+
+def test_build_explanation_reads_dynamodb_when_not_in_s3():
+    from livewell.explain import builder
+    with patch("livewell.signals.dynamodb.get_signal", return_value=_DDB_ROW) as mock_get, \
+         patch("livewell.explain.builder.load_signal_row") as mock_s3, \
+         patch("anthropic.Anthropic") as mock_anthropic:
+        mock_anthropic.return_value.messages.create.return_value = _mock_claude()
+        result = builder.build_explanation("test-bucket", "GBPUSD__2026-10-23")
+    mock_get.assert_called_once_with("GBPUSD", "2026-10-23")
+    # DynamoDB hit means the S3 fallback must NOT be consulted
+    mock_s3.assert_not_called()
+    assert result["header"].startswith("GBPUSD")
+
+
+def test_build_explanation_raises_lookup_when_neither_source_has_it():
+    from livewell.explain import builder
+    with patch("livewell.signals.dynamodb.get_signal", return_value=None), \
+         patch("livewell.explain.builder.load_signal_row", return_value=None):
+        with pytest.raises(LookupError):
+            builder.build_explanation("test-bucket", "NOPE__2026-01-01")

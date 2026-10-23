@@ -5,9 +5,19 @@ import logging
 import os
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
+from livewell.ingestion.constants import INSTRUMENTS
+
 logger = logging.getLogger(__name__)
+
+# GSI partitioned on s3_key (instrument) with date as the range key. Querying
+# this index with Limit=1, newest-first, returns an instrument's latest signal
+# in a single read — bounding the hot path to one query per instrument instead
+# of an unbounded full-table scan (LW-208). Must match the index name in
+# infra/lib/livewell-stack.ts.
+GSI_LATEST = "by-instrument-date"
 
 
 def _table():
@@ -15,27 +25,51 @@ def _table():
     return boto3.resource("dynamodb").Table(f"livewell-signals-{env}")
 
 
+def _query_latest(table, s3_key: str) -> dict | None:
+    """Return the most-recent signal for one instrument via the GSI, or None.
+
+    Queries the `by-instrument-date` index for the single highest `date` (ISO
+    YYYY-MM-DD sorts lexicographically). `ScanIndexForward=False` + `Limit=1`
+    yields the true latest regardless of write order, so out-of-order backfill
+    writes do not clobber the result.
+    """
+    resp = table.query(
+        IndexName=GSI_LATEST,
+        KeyConditionExpression=Key("s3_key").eq(s3_key),
+        ScanIndexForward=False,
+        Limit=1,
+    )
+    items = resp.get("Items", [])
+    return items[0] if items else None
+
+
 def get_latest_signals() -> list[dict]:
-    """Scan signals table; return one record per instrument (the most recent by date)."""
+    """Return one record per instrument (the most recent by date).
+
+    One bounded GSI query per instrument over the fixed INSTRUMENTS list, so the
+    read cost is independent of history size. Instruments with no signals yet are
+    absent from the result (same contract as the previous scan-and-reduce).
+    """
     try:
         table = _table()
-        resp = table.scan()
-        items: list[dict] = list(resp.get("Items", []))
-        while "LastEvaluatedKey" in resp:
-            resp = table.scan(ExclusiveStartKey=resp["LastEvaluatedKey"])
-            items.extend(resp.get("Items", []))
+        latest: list[dict] = []
+        for inst in INSTRUMENTS:
+            record = _query_latest(table, inst["s3_key"])
+            if record is not None:
+                latest.append(record)
+        return latest
     except ClientError as exc:
-        logger.error("DynamoDB scan failed: %s", exc)
+        logger.error("DynamoDB query failed: %s", exc)
         return []
 
-    # Keep only the most recent record per instrument (s3_key)
-    latest: dict[str, dict] = {}
-    for item in items:
-        key = str(item.get("s3_key", ""))
-        existing = latest.get(key)
-        if existing is None or str(item.get("date", "")) > str(existing.get("date", "")):
-            latest[key] = item
-    return list(latest.values())
+
+def get_latest_signal(instrument: str) -> dict | None:
+    """Return the most-recent signal for a single instrument (s3_key), or None."""
+    try:
+        return _query_latest(_table(), instrument)
+    except ClientError as exc:
+        logger.error("DynamoDB query failed: %s", exc)
+        return None
 
 
 def get_signal(instrument: str, date: str) -> dict | None:

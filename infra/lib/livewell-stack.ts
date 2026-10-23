@@ -48,6 +48,18 @@ export class LivewellStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    // GSI for "latest signal per instrument" (LW-208): query one instrument's
+    // partition (s3_key) newest-first with Limit=1 instead of scanning the whole
+    // table. Projection ALL so query results carry the full signal record (no
+    // second get_item per row). Must match GSI_LATEST in
+    // apps/api/livewell/signals/dynamodb.py.
+    signalsTable.addGlobalSecondaryIndex({
+      indexName: 'by-instrument-date',
+      partitionKey: { name: 's3_key', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'date', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // ── DynamoDB: model runs ───────────────────────────────────────────────────
     const modelRunsTable = new dynamodb.Table(this, 'ModelRunsTable', {
       tableName: `livewell-model-runs-${env}`,

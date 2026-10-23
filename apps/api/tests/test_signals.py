@@ -1,10 +1,9 @@
 from __future__ import annotations
-import os
+
 import boto3
 import pytest
-from moto import mock_aws
 from fastapi.testclient import TestClient
-
+from moto import mock_aws
 
 TABLE_SIGNALS = "livewell-signals-test"
 
@@ -17,47 +16,75 @@ def aws_env(monkeypatch):
     monkeypatch.setenv("LIVEWELL_ENV", "test")
 
 
+def _create_signals_table(ddb):
+    """Create the moto signals table with the by-instrument-date GSI (LW-208).
+
+    The GSI (s3_key HASH + date RANGE) must exist or get_latest_signals'/
+    get_latest_signal's Query against the index fails under moto.
+    """
+    return ddb.create_table(
+        TableName=TABLE_SIGNALS,
+        KeySchema=[{"AttributeName": "signal_id", "KeyType": "HASH"}],
+        AttributeDefinitions=[
+            {"AttributeName": "signal_id", "AttributeType": "S"},
+            {"AttributeName": "s3_key", "AttributeType": "S"},
+            {"AttributeName": "date", "AttributeType": "S"},
+        ],
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "by-instrument-date",
+                "KeySchema": [
+                    {"AttributeName": "s3_key", "KeyType": "HASH"},
+                    {"AttributeName": "date", "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            }
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+
+
 @pytest.fixture()
 def signals_table():
     with mock_aws():
         ddb = boto3.resource("dynamodb", region_name="us-east-1")
-        table = ddb.create_table(
-            TableName=TABLE_SIGNALS,
-            KeySchema=[{"AttributeName": "signal_id", "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": "signal_id", "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
+        table = _create_signals_table(ddb)
+        table.put_item(
+            Item={
+                "signal_id": "EURUSD__2026-05-05",
+                "s3_key": "EURUSD",
+                "run_id": "run-1",
+                "date": "2026-05-05",
+                "direction": "buy",
+                "signal_valid": True,
+                "strike_candidate": "1.0850",
+                "timing_slot": "buy_bullish",
+                "score": None,
+                "model_version": None,
+                "created_at": "2026-05-05T00:05:00Z",
+            }
         )
-        table.put_item(Item={
-            "signal_id": "EURUSD__2026-05-05",
-            "s3_key": "EURUSD",
-            "run_id": "run-1",
-            "date": "2026-05-05",
-            "direction": "buy",
-            "signal_valid": True,
-            "strike_candidate": "1.0850",
-            "timing_slot": "buy_bullish",
-            "score": None,
-            "model_version": None,
-            "created_at": "2026-05-05T00:05:00Z",
-        })
-        table.put_item(Item={
-            "signal_id": "GBPUSD__2026-05-05",
-            "s3_key": "GBPUSD",
-            "run_id": "run-1",
-            "date": "2026-05-05",
-            "direction": "none",
-            "signal_valid": False,
-            "strike_candidate": "",
-            "timing_slot": "unscheduled",
-            "score": None,
-            "model_version": None,
-            "created_at": "2026-05-05T00:05:00Z",
-        })
+        table.put_item(
+            Item={
+                "signal_id": "GBPUSD__2026-05-05",
+                "s3_key": "GBPUSD",
+                "run_id": "run-1",
+                "date": "2026-05-05",
+                "direction": "none",
+                "signal_valid": False,
+                "strike_candidate": "",
+                "timing_slot": "unscheduled",
+                "score": None,
+                "model_version": None,
+                "created_at": "2026-05-05T00:05:00Z",
+            }
+        )
         yield table
 
 
 def test_get_signals_returns_dynamodb_records(signals_table):
     from main import app
+
     client = TestClient(app)
     response = client.get("/api/signals")
     assert response.status_code == 200
@@ -70,22 +97,73 @@ def test_get_signals_returns_dynamodb_records(signals_table):
 def test_get_signals_returns_empty_list_when_no_data():
     with mock_aws():
         ddb = boto3.resource("dynamodb", region_name="us-east-1")
-        ddb.create_table(
-            TableName=TABLE_SIGNALS,
-            KeySchema=[{"AttributeName": "signal_id", "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": "signal_id", "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
+        _create_signals_table(ddb)
         from main import app
+
         client = TestClient(app)
         response = client.get("/api/signals")
         assert response.status_code == 200
         assert response.json() == []
 
 
+def test_latest_signal_is_newest_date_via_gsi():
+    """Two dates for one instrument → list + detail return the newer one.
+
+    Writes the older date LAST to prove the GSI (Limit=1, newest-first) returns
+    the true max date regardless of write order (out-of-order backfill case).
+    """
+    with mock_aws():
+        ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        table = _create_signals_table(ddb)
+        # Newer date first, older date second (out-of-order write).
+        table.put_item(
+            Item={
+                "signal_id": "EURUSD__2026-05-07",
+                "s3_key": "EURUSD",
+                "run_id": "run-2",
+                "date": "2026-05-07",
+                "direction": "buy",
+                "signal_valid": True,
+                "strike_candidate": "1.0900",
+                "timing_slot": "buy_bullish",
+                "score": None,
+                "model_version": None,
+                "created_at": "2026-05-07T00:05:00Z",
+            }
+        )
+        table.put_item(
+            Item={
+                "signal_id": "EURUSD__2026-05-06",
+                "s3_key": "EURUSD",
+                "run_id": "run-3",
+                "date": "2026-05-06",
+                "direction": "buy",
+                "signal_valid": True,
+                "strike_candidate": "1.0875",
+                "timing_slot": "buy_bullish",
+                "score": None,
+                "model_version": None,
+                "created_at": "2026-05-06T00:05:00Z",
+            }
+        )
+        from main import app
+
+        client = TestClient(app)
+
+        list_resp = client.get("/api/signals")
+        assert list_resp.status_code == 200
+        eurusd = [d for d in list_resp.json() if d["signalId"].startswith("EURUSD")]
+        assert len(eurusd) == 1
+        assert eurusd[0]["signalId"] == "EURUSD__2026-05-07"
+
+        detail_resp = client.get("/api/signals/EUR-USD/1.0900")
+        assert detail_resp.status_code == 200
+
+
 def test_get_signals_returns_empty_list_when_env_not_set(monkeypatch):
     monkeypatch.delenv("LIVEWELL_ENV", raising=False)
     from main import app
+
     client = TestClient(app)
     response = client.get("/api/signals")
     assert response.status_code == 200
@@ -95,6 +173,7 @@ def test_get_signals_returns_empty_list_when_env_not_set(monkeypatch):
 def test_signal_valid_false_maps_to_watch_status(signals_table):
     # signal_valid=False + direction="none" + score=None → recommendation="Watch" → status="Review"
     from main import app
+
     client = TestClient(app)
     response = client.get("/api/signals")
     assert response.status_code == 200
@@ -105,6 +184,7 @@ def test_signal_valid_false_maps_to_watch_status(signals_table):
 
 def test_get_signal_detail_found(signals_table):
     from main import app
+
     client = TestClient(app)
     # Strike in URL is not used for lookup; router uses s3_key + latest date from get_latest_signals
     response = client.get("/api/signals/EUR-USD/1.0850")
@@ -116,6 +196,7 @@ def test_get_signal_detail_found(signals_table):
 
 def test_get_signal_detail_not_found(signals_table):
     from main import app
+
     client = TestClient(app)
     # Use an instrument not present in the moto table
     response = client.get("/api/signals/XYZ-ABC/1.0000")

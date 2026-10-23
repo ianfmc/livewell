@@ -5,7 +5,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from livewell.signals.dynamodb import get_latest_signals, get_signal
+from livewell.signals.dynamodb import get_latest_signal, get_latest_signals, get_signal
 from livewell.signals.transform import NAME_BY_S3_KEY, to_contract_card, to_contract_detail
 from schemas.contract import ContractCard, ContractDetail
 
@@ -29,8 +29,7 @@ def get_signal_detail(instrument: str, strike: str) -> ContractDetail:
     s3_key = _SLUG_TO_S3_KEY.get(instrument) or None
     if s3_key is None:
         raise HTTPException(status_code=404, detail="Signal not found")
-    records = get_latest_signals()
-    match = next((r for r in records if str(r.get("s3_key", "")) == s3_key), None)
+    match = get_latest_signal(s3_key)
     if match is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     latest_date = str(match.get("date", ""))

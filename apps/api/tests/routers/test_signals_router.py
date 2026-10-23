@@ -1,9 +1,11 @@
 # apps/api/tests/routers/test_signals_router.py
 from __future__ import annotations
+
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+
 from main import app
 
 DYNAMO_SIGNAL = {
@@ -50,8 +52,10 @@ def test_get_signals_empty_returns_empty_list():
 
 
 def test_get_signal_detail_found():
-    with patch("routers.signals.get_latest_signals", return_value=[DYNAMO_SIGNAL]), \
-         patch("routers.signals.get_signal", return_value=DYNAMO_SIGNAL):
+    with (
+        patch("routers.signals.get_latest_signal", return_value=DYNAMO_SIGNAL),
+        patch("routers.signals.get_signal", return_value=DYNAMO_SIGNAL),
+    ):
         client = TestClient(app)
         resp = client.get("/api/signals/EUR-USD/1.0850")
     assert resp.status_code == 200
@@ -62,8 +66,10 @@ def test_get_signal_detail_found():
 
 
 def test_get_signal_detail_not_found():
-    with patch("routers.signals.get_latest_signals", return_value=[DYNAMO_SIGNAL]), \
-         patch("routers.signals.get_signal", return_value=None):
+    with (
+        patch("routers.signals.get_latest_signal", return_value=DYNAMO_SIGNAL),
+        patch("routers.signals.get_signal", return_value=None),
+    ):
         client = TestClient(app)
         resp = client.get("/api/signals/EUR-USD/9.9999")
     assert resp.status_code == 404
@@ -93,8 +99,10 @@ def test_get_signal_detail_gold_slug_resolves_to_xauusd():
         captured["s3_key"] = s3_key
         return GOLD_SIGNAL
 
-    with patch("routers.signals.get_latest_signals", return_value=[GOLD_SIGNAL]), \
-         patch("routers.signals.get_signal", side_effect=mock_get_signal):
+    with (
+        patch("routers.signals.get_latest_signal", return_value=GOLD_SIGNAL),
+        patch("routers.signals.get_signal", side_effect=mock_get_signal),
+    ):
         client = TestClient(app)
         resp = client.get("/api/signals/Gold/2300.00")
     assert resp.status_code == 200

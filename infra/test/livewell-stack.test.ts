@@ -78,9 +78,29 @@ describe('DynamoDB tables', () => {
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'livewell-signals-test',
       KeySchema: [{ AttributeName: 'signal_id', KeyType: 'HASH' }],
-      AttributeDefinitions: [{ AttributeName: 'signal_id', AttributeType: 'S' }],
+      AttributeDefinitions: Match.arrayWith([
+        { AttributeName: 'signal_id', AttributeType: 'S' },
+        { AttributeName: 's3_key', AttributeType: 'S' },
+        { AttributeName: 'date', AttributeType: 'S' },
+      ]),
       BillingMode: 'PAY_PER_REQUEST',
       PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true },
+    });
+  });
+
+  it('signals table has the by-instrument-date GSI (LW-208)', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'livewell-signals-test',
+      GlobalSecondaryIndexes: Match.arrayWith([
+        Match.objectLike({
+          IndexName: 'by-instrument-date',
+          KeySchema: [
+            { AttributeName: 's3_key', KeyType: 'HASH' },
+            { AttributeName: 'date', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        }),
+      ]),
     });
   });
 

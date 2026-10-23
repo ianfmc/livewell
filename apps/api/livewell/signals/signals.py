@@ -90,6 +90,12 @@ def _apply_pipeline(s3_key: str, row: dict) -> dict:
     atr = row["atr_14"]
     close = row["close"]
 
+    # reasons: human-readable "<stage>: <detail>" strings, plus the pass marker
+    # "all stages passed". CONTRACT: the reason-code UI
+    # (transform._parse_reason_codes) treats ONLY "all stages passed" as positive
+    # (✓); every other reason renders as negative (✗). If you ever add a reason
+    # that is informational/positive but NOT the pass marker, update the parser's
+    # `positive` logic too, or it will be mislabeled in the UI.
     reasons: list[str] = []
     signal_valid = True
     direction = "none"

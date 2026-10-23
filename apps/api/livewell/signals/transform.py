@@ -47,15 +47,18 @@ def _confidence(score: float | None) -> Confidence:
     return "Medium"
 
 
-def _rule_confidence(signal_valid: bool, reason_codes: list[ReasonCode]) -> Confidence:
+def _rule_confidence(signal_valid: bool, direction: str, reason_codes: list[ReasonCode]) -> Confidence:
     """Rule-based confidence proxy for when no model score exists (A3a).
 
     Derived from the deterministic signal pipeline alone: a fully valid signal
-    (all stages passed) is High; a valid signal with caveats is Medium; an
-    invalid/no-direction signal is Low. This keeps frozen-baseline candidates
-    (score=None) honestly informative instead of a misleading constant "Low".
+    with an actionable direction (all stages passed) is High; a valid signal with
+    caveats is Medium; an invalid or no-direction signal is Low. This keeps
+    frozen-baseline candidates (score=None) honestly informative instead of a
+    misleading constant "Low" — while never showing "High" for a signal that is
+    not actually actionable (D1: a "No direction / Closed" card must not read
+    "High confidence").
     """
-    if not signal_valid:
+    if not signal_valid or direction == "none":
         return "Low"
     negatives = sum(1 for rc in reason_codes if not rc.positive)
     return "High" if negatives == 0 else "Medium"
@@ -154,7 +157,7 @@ def _derive(record: dict) -> _DerivedSignal:
     rec = _recommendation(score, signal_valid, direction)
     score_available = score is not None
     # A3a: real model confidence when a score exists; honest rule-based proxy otherwise.
-    confidence = _confidence(score) if score_available else _rule_confidence(signal_valid, reason_codes)
+    confidence = _confidence(score) if score_available else _rule_confidence(signal_valid, direction, reason_codes)
     edge = round(score * 2 - 1, 4) if score is not None else 0.0
     return _DerivedSignal(
         instrument=_S3_KEY_TO_NAME.get(s3_key, s3_key),

@@ -72,18 +72,21 @@ const DailySignals = () => {
           <Grid container spacing={3}>
             {filteredData.map((card) => (
               <Grid size={{ xs:12, sm:6, md: 4}} key={card.instrument + card.strike}>
-                <ContractCard {...card} />
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => {
-                  const id = card.signalId;
-                  setSelectedSignalId(prev => prev === id ? null : id);
-                }}
-                sx={{ mt: 1 }}
-              >
-                Explain
-              </Button>
+                <ContractCard
+                  {...card}
+                  action={
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => {
+                        const id = card.signalId;
+                        setSelectedSignalId(prev => prev === id ? null : id);
+                      }}
+                    >
+                      Explain
+                    </Button>
+                  }
+                />
               </Grid>
             ))}
           </Grid>

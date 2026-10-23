@@ -44,7 +44,7 @@ describe('ContractCard', () => {
   it('shows direction, timestamp, and supporting signals (AC-1)', () => {
     renderCard();
     expect(screen.getByText('BUY')).toBeInTheDocument();
-    expect(screen.getByText(/As of: 2026-05-04/)).toBeInTheDocument();
+    expect(screen.getByText(/As of 2026-05-04/)).toBeInTheDocument();
     expect(screen.getByText(/RSI 58.0/)).toBeInTheDocument();
   });
 
@@ -56,6 +56,6 @@ describe('ContractCard', () => {
 
   it('labels confidence as rule-based when no model score (AC-2 / frozen baseline)', () => {
     renderCard({ scoreAvailable: false, confidence: 'Low' });
-    expect(screen.getByText('Low (rule-based)')).toBeInTheDocument();
+    expect(screen.getByText('Low · rule-based')).toBeInTheDocument();
   });
 });

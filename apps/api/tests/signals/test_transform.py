@@ -243,3 +243,23 @@ class TestNoScoreState:
     def test_detail_rationale_mentions_rule_based_when_no_score(self):
         detail = to_contract_detail(_rec(score=None, model_version=None))
         assert "rule-based" in detail.rationale.lower()
+
+
+# --- D1 (design-review): rule confidence must not read "High" for a non-actionable signal ---
+
+class TestRuleConfidenceActionability:
+    def test_no_direction_unscored_is_low_not_high(self):
+        # valid=True but direction=none, no score -> must NOT be High (was the D1 bug)
+        card = to_contract_card(_rec(
+            score=None, model_version=None, signal_valid=True, direction="none",
+            reasoning='["all stages passed"]',
+        ))
+        assert card.scoreAvailable is False
+        assert card.confidence == "Low"
+
+    def test_actionable_valid_unscored_is_high(self):
+        card = to_contract_card(_rec(
+            score=None, model_version=None, signal_valid=True, direction="buy",
+            reasoning='["all stages passed"]',
+        ))
+        assert card.confidence == "High"

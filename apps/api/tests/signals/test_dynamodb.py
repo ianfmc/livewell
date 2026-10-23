@@ -32,15 +32,18 @@ def _query_table(latest_by_key):
     """Build a mock table whose .query returns the latest item for the queried s3_key.
 
     `latest_by_key` maps s3_key -> item (the instrument's latest). The mock reads
-    the s3_key out of the KeyConditionExpression the production code builds with
-    Key("s3_key").eq(s3_key), returning {"Items": [item]} or {"Items": []}.
+    the queried s3_key via the condition's PUBLIC get_expression() API (the same
+    boto3 surface the production code's Key("s3_key").eq(s3_key) renders to),
+    returning {"Items": [item]} or {"Items": []}. Avoids coupling to boto3
+    private internals.
     """
     table = MagicMock()
 
     def _query(**kwargs):
         cond = kwargs.get("KeyConditionExpression")
-        # boto3 Equals condition: values are (Attr, value); grab the s3_key value.
-        values = getattr(cond, "_values", ())
+        # Public API: {'operator': '=', 'values': (Key, <value>), ...}
+        expr = cond.get_expression()
+        values = expr.get("values", ())
         s3_key = values[1] if len(values) > 1 else None
         item = latest_by_key.get(s3_key)
         return {"Items": [item] if item is not None else []}
@@ -58,6 +61,11 @@ def test_get_latest_signals_returns_most_recent_per_instrument():
     signal_ids = {r["signal_id"] for r in result}
     assert "EURUSD__2026-05-07" in signal_ids
     assert "GBPUSD__2026-05-07" in signal_ids
+    # Query the GSI newest-first, one item per instrument (bounded read — LW-208).
+    _, kwargs = table.query.call_args
+    assert kwargs["IndexName"] == "by-instrument-date"
+    assert kwargs["ScanIndexForward"] is False
+    assert kwargs["Limit"] == 1
 
 
 def test_get_latest_signals_skips_instruments_with_no_signals():

@@ -50,3 +50,7 @@ a2ui/
 # Superpowers brainstorm sessions
 .superpowers/
 .ipynb_checkpoints/
+
+# gstack local artifacts (not versioned)
+.context/
+.kiro/hooks/

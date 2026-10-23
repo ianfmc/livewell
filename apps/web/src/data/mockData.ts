@@ -1,9 +1,32 @@
+export type ReasonCode = {
+  label: string;
+  positive: boolean;
+};
+
+export type SupportingSignals = {
+  ema20: number | null;
+  ema50: number | null;
+  rsi14: number | null;
+  macdHist: number | null;
+  atr14: number | null;
+};
+
 export type ContractCard = {
   instrument: string;
   signalId: string;
   strike: string;
   expiry: string;
   status: string;
+  // LW-207: candidate now carries direction, timestamp, supporting signals,
+  // reason codes, and confidence/uncertainty context.
+  direction: string;
+  date: string;
+  recommendation: "Take" | "Watch" | "Pass";
+  confidence: "High" | "Medium" | "Low";
+  scoreAvailable: boolean;
+  edge: number;
+  supportingSignals: SupportingSignals;
+  reasonCodes: ReasonCode[];
 };
 
 export type ContractDetail = {
@@ -36,6 +59,14 @@ export const mockData: ContractCard[] = [
     strike: "1.0850",
     expiry: "10:00 AM",
     status: "Open",
+    direction: "buy",
+    date: "2026-05-04",
+    recommendation: "Take",
+    confidence: "High",
+    scoreAvailable: true,
+    edge: 0.42,
+    supportingSignals: { ema20: 1.085, ema50: 1.08, rsi14: 58, macdHist: 0.0002, atr14: 0.005 },
+    reasonCodes: [{ label: "All stages passed", positive: true }],
   },
   {
     instrument: "GBP/USD",
@@ -43,6 +74,14 @@ export const mockData: ContractCard[] = [
     strike: "1.2650",
     expiry: "11:00 AM",
     status: "Open",
+    direction: "sell",
+    date: "2026-05-04",
+    recommendation: "Take",
+    confidence: "Medium",
+    scoreAvailable: true,
+    edge: 0.18,
+    supportingSignals: { ema20: 1.262, ema50: 1.268, rsi14: 41, macdHist: -0.0003, atr14: 0.006 },
+    reasonCodes: [{ label: "All stages passed", positive: true }],
   },
   {
     instrument: "USD/JPY",
@@ -50,6 +89,14 @@ export const mockData: ContractCard[] = [
     strike: "150.00",
     expiry: "09:30 AM",
     status: "Review",
+    direction: "none",
+    date: "2026-05-04",
+    recommendation: "Watch",
+    confidence: "Low",
+    scoreAvailable: false,
+    edge: 0.0,
+    supportingSignals: { ema20: 149.9, ema50: 149.95, rsi14: 52, macdHist: 0.0, atr14: 0.4 },
+    reasonCodes: [{ label: "Momentum — bullish conditions not met", positive: false }],
   },
 ];
 

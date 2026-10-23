@@ -72,13 +72,7 @@ const DailySignals = () => {
           <Grid container spacing={3}>
             {filteredData.map((card) => (
               <Grid size={{ xs:12, sm:6, md: 4}} key={card.instrument + card.strike}>
-                <ContractCard
-                instrument={card.instrument}
-                strike={card.strike}
-                expiry={card.expiry}
-                status={card.status}
-                signalId={card.signalId}
-              />
+                <ContractCard {...card} />
               <Button
                 size="small"
                 variant="text"

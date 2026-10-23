@@ -152,3 +152,94 @@ class TestToContractDetail:
     def test_regime_passed_through(self):
         detail = to_contract_detail(BASE)
         assert detail.regime == "bullish"
+
+
+# --- LW-207: reason-code string-format fix, card/detail consistency, no-score state ---
+
+# A realistic pipeline reasoning payload is a JSON list of PLAIN STRINGS.
+_PIPELINE_REASONS = '["trend: bullish (ema_20 > ema_50)", "momentum: bullish conditions not met", "all stages passed"]'
+
+
+class TestReasonCodeParsing:
+    def test_pipeline_string_format_is_not_empty(self):
+        # The real pipeline emits plain strings; this used to silently yield [].
+        detail = to_contract_detail(_rec(reasoning=_PIPELINE_REASONS))
+        assert len(detail.reasonCodes) == 3
+
+    def test_pass_marker_is_positive(self):
+        detail = to_contract_detail(_rec(reasoning='["all stages passed"]'))
+        assert detail.reasonCodes[0].positive is True
+
+    def test_failed_stage_is_negative(self):
+        detail = to_contract_detail(_rec(reasoning='["momentum: bullish conditions not met"]'))
+        assert detail.reasonCodes[0].positive is False
+        assert "Momentum" in detail.reasonCodes[0].label
+
+    def test_dict_format_still_supported(self):
+        # Back-compat with already-structured {label, positive}.
+        detail = to_contract_detail(_rec(reasoning='[{"label": "X", "positive": false}]'))
+        assert detail.reasonCodes[0].label == "X"
+        assert detail.reasonCodes[0].positive is False
+
+    def test_garbage_returns_empty_not_raise(self):
+        assert to_contract_detail(_rec(reasoning="not-json")).reasonCodes == []
+        assert to_contract_detail(_rec(reasoning='{"not": "a list"}')).reasonCodes == []
+
+
+class TestCardDetailConsistency:
+    """A2: card and detail derive from one source and must agree on shared fields."""
+
+    def test_status_recommendation_confidence_agree(self):
+        rec = _rec(reasoning=_PIPELINE_REASONS)
+        card = to_contract_card(rec)
+        detail = to_contract_detail(rec)
+        assert card.status == detail.status
+        assert card.recommendation == detail.recommendation
+        assert card.confidence == detail.confidence
+        assert abs(card.edge - detail.edge) < 1e-9
+        assert card.reasonCodes == detail.reasonCodes
+
+
+class TestCandidateFields:
+    """A1: candidate card now carries direction, timestamp, supporting signals."""
+
+    def test_card_exposes_direction_and_date(self):
+        card = to_contract_card(_rec(ema_20="1.085", ema_50="1.080", rsi_14="58", macd_hist="0.0002", atr_14="0.005"))
+        assert card.direction == "buy"
+        assert card.date == "2026-05-07"
+
+    def test_card_exposes_supporting_signals(self):
+        card = to_contract_card(_rec(ema_20="1.085", ema_50="1.080", rsi_14="58", macd_hist="0.0002", atr_14="0.005"))
+        assert card.supportingSignals.ema20 == pytest.approx(1.085)
+        assert card.supportingSignals.rsi14 == pytest.approx(58.0)
+        assert card.supportingSignals.atr14 == pytest.approx(0.005)
+
+    def test_missing_signals_are_none_not_error(self):
+        card = to_contract_card(_rec())  # BASE has no ema/rsi/... keys
+        assert card.supportingSignals.ema20 is None
+
+
+class TestNoScoreState:
+    """A3a: frozen baseline has score=None — must be honest, not misleading Low."""
+
+    def test_score_available_true_when_scored(self):
+        assert to_contract_card(BASE).scoreAvailable is True
+
+    def test_score_available_false_when_unscored(self):
+        card = to_contract_card(_rec(score=None, model_version=None))
+        assert card.scoreAvailable is False
+
+    def test_valid_signal_no_score_is_rule_high_not_low(self):
+        # all-passed, valid, no score -> rule-based High (not a misleading "Low")
+        card = to_contract_card(_rec(score=None, signal_valid=True, reasoning='["all stages passed"]'))
+        assert card.scoreAvailable is False
+        assert card.confidence == "High"
+
+    def test_invalid_signal_no_score_is_low(self):
+        card = to_contract_card(_rec(score=None, signal_valid="False",
+                                     reasoning='["momentum: bullish conditions not met"]'))
+        assert card.confidence == "Low"
+
+    def test_detail_rationale_mentions_rule_based_when_no_score(self):
+        detail = to_contract_detail(_rec(score=None, model_version=None))
+        assert "rule-based" in detail.rationale.lower()

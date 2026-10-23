@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
 from livewell.ingestion.constants import INSTRUMENTS
-from schemas.contract import ContractCard, ContractDetail, Economics, ReasonCode
+from schemas.contract import ContractCard, ContractDetail, Economics, ReasonCode, SupportingSignals
 
 logger = logging.getLogger(__name__)
 
@@ -46,58 +47,180 @@ def _confidence(score: float | None) -> Confidence:
     return "Medium"
 
 
+def _rule_confidence(signal_valid: bool, reason_codes: list[ReasonCode]) -> Confidence:
+    """Rule-based confidence proxy for when no model score exists (A3a).
+
+    Derived from the deterministic signal pipeline alone: a fully valid signal
+    (all stages passed) is High; a valid signal with caveats is Medium; an
+    invalid/no-direction signal is Low. This keeps frozen-baseline candidates
+    (score=None) honestly informative instead of a misleading constant "Low".
+    """
+    if not signal_valid:
+        return "Low"
+    negatives = sum(1 for rc in reason_codes if not rc.positive)
+    return "High" if negatives == 0 else "Medium"
+
+
 def _status(rec: str) -> str:
     return {"Take": "Open", "Watch": "Review", "Pass": "Closed"}.get(rec, "Closed")
 
 
+# Humanized labels for the pipeline's "<stage>: <detail>" reason strings.
+_REASON_PASS_MARKER = "all stages passed"
+
+
 def _parse_reason_codes(reasoning: str) -> list[ReasonCode]:
+    """Parse the signal pipeline's `reasoning` field into reason codes.
+
+    The pipeline (_apply_pipeline) writes a JSON list of PLAIN STRINGS, e.g.
+    "momentum: bullish conditions not met" or "all stages passed". Older/mock
+    data may instead carry a list of {label, positive} dicts. Handle both, and
+    never raise — return [] on anything unparseable.
+    """
     try:
         items = json.loads(reasoning)
-        return [ReasonCode(label=r["label"], positive=bool(r["positive"])) for r in items]
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(items, list):
         return []
 
-
-def to_contract_card(record: dict) -> ContractCard:
-    s3_key = str(record.get("s3_key", ""))
-    score = _score(record)
-    signal_valid = record.get("signal_valid") is True
-    direction = str(record.get("direction", "none"))
-    rec = _recommendation(score, signal_valid, direction)
-    return ContractCard(
-        instrument=_S3_KEY_TO_NAME.get(s3_key, s3_key),
-        strike=str(record.get("strike_candidate", "")),
-        expiry=str(record.get("timing_slot", "")),
-        status=_status(rec),
-        signalId=str(record.get("signal_id", "")),
-    )
+    out: list[ReasonCode] = []
+    for item in items:
+        if isinstance(item, dict):
+            # Back-compat: already-structured {label, positive}.
+            try:
+                out.append(ReasonCode(label=str(item["label"]), positive=bool(item["positive"])))
+            except (KeyError, TypeError):
+                continue
+        elif isinstance(item, str):
+            text = item.strip()
+            if not text:
+                continue
+            positive = text.lower() == _REASON_PASS_MARKER
+            # Humanize "stage: detail" -> "Stage — detail"
+            if ":" in text:
+                stage, detail = text.split(":", 1)
+                label = f"{stage.strip().capitalize()} — {detail.strip()}"
+            else:
+                label = text[:1].upper() + text[1:]
+            out.append(ReasonCode(label=label, positive=positive))
+    return out
 
 
 _DEFAULT_ECONOMICS = Economics(cost=40.0, payout=100.0, breakeven=0.40)
 
 
-def to_contract_detail(record: dict) -> ContractDetail:
+@dataclass
+class _DerivedSignal:
+    """Single source of truth for everything derived from a signal record.
+
+    Both to_contract_card and to_contract_detail build from this, so a candidate
+    and its detail view can never disagree (eng-review A2).
+    """
+
+    instrument: str
+    strike: str
+    expiry: str
+    direction: str
+    date: str
+    status: str
+    recommendation: Recommendation
+    confidence: Confidence
+    score_available: bool
+    model_probability: float | None
+    edge: float
+    regime: str
+    no_trade_flag: bool
+    reason_codes: list[ReasonCode]
+    supporting: SupportingSignals
+
+
+def _f(record: dict, key: str) -> float | None:
+    raw = record.get(key)
+    if raw is None:
+        return None
+    try:
+        return float(Decimal(str(raw))) if isinstance(raw, Decimal) else float(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _derive(record: dict) -> _DerivedSignal:
     s3_key = str(record.get("s3_key", ""))
     score = _score(record)
     signal_valid = record.get("signal_valid") is True
     direction = str(record.get("direction", "none"))
+    reason_codes = _parse_reason_codes(str(record.get("reasoning", "[]")))
     rec = _recommendation(score, signal_valid, direction)
-    conf = _confidence(score)
+    score_available = score is not None
+    # A3a: real model confidence when a score exists; honest rule-based proxy otherwise.
+    confidence = _confidence(score) if score_available else _rule_confidence(signal_valid, reason_codes)
     edge = round(score * 2 - 1, 4) if score is not None else 0.0
-    return ContractDetail(
+    return _DerivedSignal(
         instrument=_S3_KEY_TO_NAME.get(s3_key, s3_key),
         strike=str(record.get("strike_candidate", "")),
         expiry=str(record.get("timing_slot", "")),
+        direction=direction,
+        date=str(record.get("date", "")),
         status=_status(rec),
         recommendation=rec,
-        rationale=f"{rec} — score {score:.2f}" if score is not None else "No model score available",
+        confidence=confidence,
+        score_available=score_available,
+        model_probability=score,
+        edge=edge,
+        regime=str(record.get("trend_bias", "")),
+        no_trade_flag=(str(record.get("timing_risk", "")).lower() == "high"),
+        reason_codes=reason_codes,
+        supporting=SupportingSignals(
+            ema20=_f(record, "ema_20"),
+            ema50=_f(record, "ema_50"),
+            rsi14=_f(record, "rsi_14"),
+            macdHist=_f(record, "macd_hist"),
+            atr14=_f(record, "atr_14"),
+        ),
+    )
+
+
+def to_contract_card(record: dict) -> ContractCard:
+    d = _derive(record)
+    return ContractCard(
+        instrument=d.instrument,
+        strike=d.strike,
+        expiry=d.expiry,
+        status=d.status,
+        signalId=str(record.get("signal_id", "")),
+        direction=d.direction,
+        date=d.date,
+        recommendation=d.recommendation,
+        confidence=d.confidence,
+        scoreAvailable=d.score_available,
+        edge=d.edge,
+        supportingSignals=d.supporting,
+        reasonCodes=d.reason_codes,
+    )
+
+
+def to_contract_detail(record: dict) -> ContractDetail:
+    d = _derive(record)
+    score = d.model_probability
+    return ContractDetail(
+        instrument=d.instrument,
+        strike=d.strike,
+        expiry=d.expiry,
+        status=d.status,
+        recommendation=d.recommendation,
+        rationale=(
+            f"{d.recommendation} — score {score:.2f}"
+            if score is not None
+            else f"{d.recommendation} — rule-based candidate (no model score)"
+        ),
         economics=_DEFAULT_ECONOMICS,
         modelProbability=score,
-        edge=edge,
-        confidence=conf,
-        regime=str(record.get("trend_bias", "")),
-        noTradeFlag=(str(record.get("timing_risk", "")).lower() == "high"),
-        reasonCodes=_parse_reason_codes(str(record.get("reasoning", "[]"))),
+        edge=d.edge,
+        confidence=d.confidence,
+        regime=d.regime,
+        noTradeFlag=d.no_trade_flag,
+        reasonCodes=d.reason_codes,
     )
 
 

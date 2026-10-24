@@ -48,17 +48,16 @@ export class LivewellStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // GSI for "latest signal per instrument" (LW-208): query one instrument's
-    // partition (s3_key) newest-first with Limit=1 instead of scanning the whole
-    // table. Projection ALL so query results carry the full signal record (no
-    // second get_item per row). Must match GSI_LATEST in
-    // apps/api/livewell/signals/dynamodb.py.
-    signalsTable.addGlobalSecondaryIndex({
-      indexName: 'by-instrument-date',
-      partitionKey: { name: 's3_key', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'date', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL,
-    });
+    // GSI "by-instrument-date" (LW-208: latest signal per instrument) is LIVE on
+    // livewell-signals-prod but intentionally NOT declared here. It was created
+    // out-of-band (dynamodb update-table) to unblock LW-208, and CloudFormation
+    // cannot adopt an already-existing GSI via a normal deploy ("index already
+    // exists" -> UPDATE_FAILED). Leaving it undeclared keeps CFN from touching the
+    // live index. FOLLOW-UP: adopt it via a CloudFormation IMPORT operation, then
+    // restore this block (s3_key HASH + date RANGE, projection ALL) so IaC manages
+    // it. Until then this is documented, intentional drift — do NOT re-add the
+    // addGlobalSecondaryIndex call without first importing, or the deploy fails.
+    // gstack-shortcut(dec-68acb037): unmanaged GSI, upgrade when CFN-import done.
 
     // ── DynamoDB: model runs ───────────────────────────────────────────────────
     const modelRunsTable = new dynamodb.Table(this, 'ModelRunsTable', {
@@ -240,9 +239,12 @@ export class LivewellStack extends cdk.Stack {
     dlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
 
     // ── API Lambda (FastAPI + Mangum) ─────────────────────────────────────────
-    // ANTHROPIC_API_KEY is injected at deploy time via --context anthropicKey=sk-ant-...
-    // or read from SSM at runtime by the Lambda itself (see builder.py).
-    const anthropicApiKey = (this.node.tryGetContext('anthropicKey') as string | undefined) ?? '';
+    // ANTHROPIC_API_KEY is fetched at RUNTIME by the Lambda from an SSM
+    // SecureString (CloudFormation cannot inject an ssm-secure value into a
+    // Lambda env var). We pass only the parameter NAME; builder.py resolves and
+    // caches the decrypted value per cold start. Stored out-of-band once:
+    // /livewell/<env>/anthropic-api-key. Future deploys need no secret handling.
+    const anthropicKeyParamName = `/livewell/${env}/anthropic-api-key`;
 
     const apiLambda = new lambda.DockerImageFunction(this, 'ApiLambda', {
       functionName: `livewell-api-fn-${env}`,
@@ -257,9 +259,23 @@ export class LivewellStack extends cdk.Stack {
         LIVEWELL_ENV: env,
         LIVEWELL_BUCKET: bucket.bucketName,
         CORS_ORIGINS: (this.node.tryGetContext('corsOrigins') as string | undefined) ?? '*',
-        ANTHROPIC_API_KEY: anthropicApiKey,
+        ANTHROPIC_API_KEY_SSM_PARAM: anthropicKeyParamName,
+        // Explain model, overridable via context; default stays the pinned Haiku
+        // snapshot (LW-211 folded-in configurable-model item).
+        ANTHROPIC_MODEL:
+          (this.node.tryGetContext('anthropicModel') as string | undefined) ??
+          'claude-haiku-4-5-20251001',
       },
     });
+
+    // Allow the API Lambda to read + decrypt the Anthropic key parameter.
+    apiLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['ssm:GetParameter'],
+      resources: [
+        `arn:aws:ssm:${this.region}:${this.account}:parameter${anthropicKeyParamName}`,
+      ],
+    }));
 
     signalsTable.grantReadData(apiLambda);
     modelRegistryTable.grantReadData(apiLambda);

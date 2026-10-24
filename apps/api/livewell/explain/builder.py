@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import boto3
 import pandas as pd
 
@@ -58,6 +60,39 @@ def _num(row: dict, key: str) -> float:
         return float("nan")
 
 
+_ANTHROPIC_KEY_CACHE: str | None = None
+
+
+def _resolve_anthropic_key() -> str | None:
+    """Resolve the Anthropic API key.
+
+    Order: an explicit ANTHROPIC_API_KEY env var (local dev / override), else the
+    SSM SecureString named by ANTHROPIC_API_KEY_SSM_PARAM (fetched + decrypted once
+    per cold start and cached). CloudFormation cannot inject an ssm-secure value
+    into a Lambda env var, so prod passes the param NAME and the Lambda fetches it
+    at runtime. Returns None if neither is configured (lets the Anthropic client
+    raise its own clear auth error).
+    """
+    global _ANTHROPIC_KEY_CACHE
+
+    direct = os.environ.get("ANTHROPIC_API_KEY")
+    if direct:
+        return direct
+
+    if _ANTHROPIC_KEY_CACHE is not None:
+        return _ANTHROPIC_KEY_CACHE
+
+    param_name = os.environ.get("ANTHROPIC_API_KEY_SSM_PARAM")
+    if not param_name:
+        return None
+
+    import boto3
+
+    resp = boto3.client("ssm").get_parameter(Name=param_name, WithDecryption=True)
+    _ANTHROPIC_KEY_CACHE = resp["Parameter"]["Value"]
+    return _ANTHROPIC_KEY_CACHE
+
+
 def _format_row_for_prompt(row: dict) -> str:
     """Format a signal row as structured text for the Claude prompt."""
     return (
@@ -103,9 +138,9 @@ def build_explanation(bucket: str, signal_id: str) -> dict:
 
     user_message = _format_row_for_prompt(row)
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=_resolve_anthropic_key())
     response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
         max_tokens=512,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],

@@ -276,8 +276,62 @@ export class LivewellStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'ApiUrl', { value: apiUrl.url });
 
+    // ── DynamoDB: trades (outcome tracking) ────────────────────────────────────
+    const tradesTable = new dynamodb.Table(this, 'TradesTable', {
+      tableName: `livewell-trades-${env}`,
+      partitionKey: { name: 'trade_id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // ── Outcome-resolver Lambda (intraday disciplined-exit resolution) ─────────
+    // Runs on a weekday intraday schedule; resolves open trades past expiry by
+    // fetching the close price (yfinance) and marking won/lost vs strike.
+    // Entry: livewell.tracking.handler.handler (see Dockerfile.resolver).
+    const resolverLambda = new lambda.DockerImageFunction(this, 'ResolverLambda', {
+      functionName: `livewell-outcome-resolver-fn-${env}`,
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../apps/api'),
+        { file: 'Dockerfile.resolver' }
+      ),
+      architecture: lambda.Architecture.ARM_64,
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(300),
+      environment: {
+        LIVEWELL_ENV: env,
+      },
+    });
+
+    tradesTable.grantReadWriteData(resolverLambda);
+    signalsTable.grantReadData(resolverLambda);
+
+    // Intraday resolution schedules (ET in the construct id; cron is UTC).
+    // 11:05 ET = 16:05 UTC, 14:05 = 19:05, 16:05 = 21:05, 17:05 = 22:05.
+    new events.Rule(this, 'Resolver1100ET', {
+      ruleName: `livewell-resolver-resolver1100et-${env}`,
+      schedule: events.Schedule.expression('cron(5 16 ? * MON-FRI *)'),
+      targets: [new targets.LambdaFunction(resolverLambda)],
+    });
+    new events.Rule(this, 'Resolver1400ET', {
+      ruleName: `livewell-resolver-resolver1400et-${env}`,
+      schedule: events.Schedule.expression('cron(5 19 ? * MON-FRI *)'),
+      targets: [new targets.LambdaFunction(resolverLambda)],
+    });
+    new events.Rule(this, 'Resolver1600ET', {
+      ruleName: `livewell-resolver-resolver1600et-${env}`,
+      schedule: events.Schedule.expression('cron(5 21 ? * MON-FRI *)'),
+      targets: [new targets.LambdaFunction(resolverLambda)],
+    });
+    new events.Rule(this, 'Resolver1700ET', {
+      ruleName: `livewell-resolver-resolver1700et-${env}`,
+      schedule: events.Schedule.expression('cron(5 22 ? * MON-FRI *)'),
+      targets: [new targets.LambdaFunction(resolverLambda)],
+    });
+
     // ── Additional outputs ────────────────────────────────────────────────────
     new cdk.CfnOutput(this, 'PipelineLambdaArn', { value: pipelineLambda.functionArn });
     new cdk.CfnOutput(this, 'AlertTopicArn', { value: alertTopic.topicArn });
+    new cdk.CfnOutput(this, 'TradesTableName', { value: tradesTable.tableName });
   }
 }

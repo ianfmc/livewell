@@ -54,3 +54,5 @@ a2ui/
 # gstack local artifacts (not versioned)
 .context/
 .kiro/hooks/
+.lw211-recovered/
+infra/deployed-prod-template.json

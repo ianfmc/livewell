@@ -1,0 +1,13 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+RUN pip install --no-cache-dir \
+    boto3 \
+    pandas \
+    yfinance \
+    pyarrow
+
+COPY . ${LAMBDA_TASK_ROOT}
+
+RUN chmod -R 755 ${LAMBDA_TASK_ROOT} && python -m compileall -q ${LAMBDA_TASK_ROOT}
+
+CMD ["livewell.tracking.handler.handler"]
